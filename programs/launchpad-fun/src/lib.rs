@@ -1,23 +1,33 @@
+#![allow(deprecated, unexpected_cfgs)]
 use anchor_lang::prelude::*;
 
 pub mod constants;
+pub mod errors;
+pub mod events;
+pub mod instructions;
+pub mod math;
 pub mod state;
-pub mod math; 
-pub use constants::*;
-pub use state::*;
-pub use math::*;
+pub mod statuses;
 
-declare_id!("BqECdxVHEDqGudnvwVRexKFXEWg3hoX5whLecTXZs6jn");
+pub use constants::*;
+pub use errors::*;
+pub use events::*;
+pub use instructions::*;
+pub use math::*;
+pub use state::*;
+pub use statuses::*;
+
+declare_id!("HqY2bef2WwBtVSLJhii8GJ2aG3wFgDNECHYHc6Y1zHkR");
 
 #[program]
 pub mod launchpad_fun {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        msg!("Greetings from: {:?}", ctx.program_id);
+    pub fn initialize(
+        ctx: Context<InitLaunchPadConfig>,
+        args: InitLaunchPadConfigArgs,
+    ) -> Result<()> {
+        ctx.accounts.initialize(args, ctx.bumps.launch_pad_config)?;
         Ok(())
     }
 }
-
-#[derive(Accounts)]
-pub struct Initialize {}
