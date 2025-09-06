@@ -1,4 +1,3 @@
-
 pub const MIN_PROTOCOL_FEE: u32 = 5_000; // 5%
 pub const MAX_PROTOCOL_FEE: u32 = 10_000; // 10%
 

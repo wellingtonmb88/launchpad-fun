@@ -49,4 +49,13 @@ pub enum LaunchPadErrorCode {
 
     #[msg("LaunchPadToken already graduated")]
     LaunchPadTokenAlreadyGraduated,
+
+    #[msg("Invalid token name length")]
+    InvalidTokenNameLength,
+
+    #[msg("Invalid token symbol length")]
+    InvalidTokenSymbolLength,
+
+    #[msg("Invalid token URI length")]
+    InvalidTokenUriLength,
 }

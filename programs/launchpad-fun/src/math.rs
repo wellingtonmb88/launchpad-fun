@@ -1,7 +1,7 @@
-use crate::{ASSET_RATE, K, TOKEN_TOTAL_SUPPLY};
+use crate::{K, TOKEN_TOTAL_SUPPLY};
 
-pub fn initial_virtual_asset_reserve() -> u128 {
-    let k = (K * 10000) / ASSET_RATE;
+pub fn initial_virtual_asset_reserve(asset_rate: u64) -> u128 {
+    let k = (K * 10000) / asset_rate;
     let a = (k as u128) * 10000 * (1e9 as u128);
     let b = a / TOKEN_TOTAL_SUPPLY;
     (b * (1e9 as u128)) / 10000 as u128
@@ -40,12 +40,12 @@ mod test {
     #[test]
     fn test_initial_virtual_asset_reserve() {
         // 4.285.714,2857
-        assert_eq!(initial_virtual_asset_reserve(), 4_285_714_285_700_000);
+        assert_eq!(initial_virtual_asset_reserve(7), 4_285_714_285_700_000);
     }
 
     #[test]
     fn test_calc_token_amount_out() {
-        let current_asset_supply = initial_virtual_asset_reserve();
+        let current_asset_supply = initial_virtual_asset_reserve(7);
         let current_k = current_asset_supply * TOKEN_TOTAL_SUPPLY;
         assert_eq!(current_k, 4285714285700000000000000000000000);
         let result = calc_token_amount_out(
@@ -59,7 +59,7 @@ mod test {
 
     #[test]
     fn test_calc_asset_amount_out() {
-        let current_asset_supply = initial_virtual_asset_reserve();
+        let current_asset_supply = initial_virtual_asset_reserve(7);
         let current_k = current_asset_supply * TOKEN_TOTAL_SUPPLY;
         assert_eq!(current_k, 4285714285700000000000000000000000);
         let result = calc_asset_amount_out(
