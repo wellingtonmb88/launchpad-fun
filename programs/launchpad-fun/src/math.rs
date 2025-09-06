@@ -48,8 +48,12 @@ mod test {
         let current_asset_supply = initial_virtual_asset_reserve();
         let current_k = current_asset_supply * TOKEN_TOTAL_SUPPLY;
         assert_eq!(current_k, 4285714285700000000000000000000000);
-        let result =
-            calc_token_amount_out(990_000_000, current_k, current_asset_supply, TOKEN_TOTAL_SUPPLY);
+        let result = calc_token_amount_out(
+            990_000_000,
+            current_k,
+            current_asset_supply,
+            TOKEN_TOTAL_SUPPLY,
+        );
         assert_eq!(result, 230999946640); // 230,99994664
     }
 
@@ -58,8 +62,12 @@ mod test {
         let current_asset_supply = initial_virtual_asset_reserve();
         let current_k = current_asset_supply * TOKEN_TOTAL_SUPPLY;
         assert_eq!(current_k, 4285714285700000000000000000000000);
-        let result =
-            calc_asset_amount_out(990_000_000, current_k, TOKEN_TOTAL_SUPPLY, current_asset_supply);
+        let result = calc_asset_amount_out(
+            990_000_000,
+            current_k,
+            TOKEN_TOTAL_SUPPLY,
+            current_asset_supply,
+        );
         assert_eq!(result, 4242858); // 0,004242858
     }
 }
