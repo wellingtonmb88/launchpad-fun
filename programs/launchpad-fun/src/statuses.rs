@@ -9,3 +9,13 @@ pub enum ProtocolStatus {
     Active,
     Paused,
 }
+
+#[derive(
+    AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, Default, InitSpace,
+)]
+pub enum LaunchPadTokenStatus {
+    #[default]
+    Unknown,
+    TradingEnabled,
+    Graduated,
+}

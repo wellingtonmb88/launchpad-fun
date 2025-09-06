@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::ProtocolStatus;
+use crate::{LaunchPadTokenStatus, ProtocolStatus};
 
 #[event]
 #[derive(Debug)]
@@ -23,5 +23,22 @@ pub struct LaunchPadPaused {
 #[event]
 #[derive(Debug)]
 pub struct LaunchPadUnpaused {
+    pub timestamp: i64,
+}
+
+#[event]
+#[derive(Debug)]
+pub struct LaunchPadTokenCreated {
+    pub creator: Pubkey,
+    pub mint: Pubkey,
+    pub status: LaunchPadTokenStatus,
+    pub timestamp: i64,
+}
+
+#[event]
+#[derive(Debug)]
+pub struct LaunchPadTokenGraduated {
+    pub mint: Pubkey,
+    pub status: LaunchPadTokenStatus,
     pub timestamp: i64,
 }

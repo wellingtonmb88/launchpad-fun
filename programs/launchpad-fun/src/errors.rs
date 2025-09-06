@@ -34,4 +34,19 @@ pub enum LaunchPadErrorCode {
 
     #[msg("Protocol fee minimum not met")]
     ProtocolFeeMinimumNotMet,
+
+    #[msg("Invalid creator")]
+    InvalidCreator,
+
+    #[msg("Invalid mint")]
+    InvalidMint,
+
+    #[msg("LaunchPadToken not created")]
+    LaunchPadTokenNotCreated,
+
+    #[msg("LaunchPadToken already created")]
+    LaunchPadTokenAlreadyCreated,
+
+    #[msg("LaunchPadToken already graduated")]
+    LaunchPadTokenAlreadyGraduated,
 }
