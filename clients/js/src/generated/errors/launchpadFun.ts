@@ -46,19 +46,24 @@ export const LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_NOT_CREATED = 0x177d; // 6013
 export const LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_CREATED = 0x177e; // 6014
 /** LaunchPadTokenAlreadyGraduated: LaunchPadToken already graduated */
 export const LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_GRADUATED = 0x177f; // 6015
+/** LaunchPadTokenTradingNotEnabled: LaunchPadToken trading is not enabled */
+export const LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_TRADING_NOT_ENABLED = 0x1780; // 6016
 /** InvalidTokenNameLength: Invalid token name length */
-export const LAUNCHPAD_FUN_ERROR__INVALID_TOKEN_NAME_LENGTH = 0x1780; // 6016
+export const LAUNCHPAD_FUN_ERROR__INVALID_TOKEN_NAME_LENGTH = 0x1781; // 6017
 /** InvalidTokenSymbolLength: Invalid token symbol length */
-export const LAUNCHPAD_FUN_ERROR__INVALID_TOKEN_SYMBOL_LENGTH = 0x1781; // 6017
+export const LAUNCHPAD_FUN_ERROR__INVALID_TOKEN_SYMBOL_LENGTH = 0x1782; // 6018
 /** InvalidTokenUriLength: Invalid token URI length */
-export const LAUNCHPAD_FUN_ERROR__INVALID_TOKEN_URI_LENGTH = 0x1782; // 6018
+export const LAUNCHPAD_FUN_ERROR__INVALID_TOKEN_URI_LENGTH = 0x1783; // 6019
 /** MathOverflow: Math overflow */
-export const LAUNCHPAD_FUN_ERROR__MATH_OVERFLOW = 0x1783; // 6019
+export const LAUNCHPAD_FUN_ERROR__MATH_OVERFLOW = 0x1784; // 6020
+/** InsufficientTokenLiquidity: Insufficient token liquidity */
+export const LAUNCHPAD_FUN_ERROR__INSUFFICIENT_TOKEN_LIQUIDITY = 0x1785; // 6021
 
 export type LaunchpadFunError =
   | typeof LAUNCHPAD_FUN_ERROR__ASSET_RATE_MUST_BE_GREATER_THAN_ZERO
   | typeof LAUNCHPAD_FUN_ERROR__CREATOR_SELL_DELAY_NOT_MET
   | typeof LAUNCHPAD_FUN_ERROR__GRADUATE_THRESHOLD_NOT_MET
+  | typeof LAUNCHPAD_FUN_ERROR__INSUFFICIENT_TOKEN_LIQUIDITY
   | typeof LAUNCHPAD_FUN_ERROR__INVALID_AUTHORITY
   | typeof LAUNCHPAD_FUN_ERROR__INVALID_CREATOR
   | typeof LAUNCHPAD_FUN_ERROR__INVALID_MINT
@@ -68,6 +73,7 @@ export type LaunchpadFunError =
   | typeof LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_CREATED
   | typeof LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_GRADUATED
   | typeof LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_NOT_CREATED
+  | typeof LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_TRADING_NOT_ENABLED
   | typeof LAUNCHPAD_FUN_ERROR__MATH_OVERFLOW
   | typeof LAUNCHPAD_FUN_ERROR__PROTOCOL_ALREADY_PAUSED
   | typeof LAUNCHPAD_FUN_ERROR__PROTOCOL_CONFIG_INITIALIZED
@@ -83,6 +89,7 @@ if (process.env.NODE_ENV !== 'production') {
     [LAUNCHPAD_FUN_ERROR__ASSET_RATE_MUST_BE_GREATER_THAN_ZERO]: `Asset rate must be greater than zero`,
     [LAUNCHPAD_FUN_ERROR__CREATOR_SELL_DELAY_NOT_MET]: `Creator sell delay not met`,
     [LAUNCHPAD_FUN_ERROR__GRADUATE_THRESHOLD_NOT_MET]: `Graduate threshold not met`,
+    [LAUNCHPAD_FUN_ERROR__INSUFFICIENT_TOKEN_LIQUIDITY]: `Insufficient token liquidity`,
     [LAUNCHPAD_FUN_ERROR__INVALID_AUTHORITY]: `Invalid authority`,
     [LAUNCHPAD_FUN_ERROR__INVALID_CREATOR]: `Invalid creator`,
     [LAUNCHPAD_FUN_ERROR__INVALID_MINT]: `Invalid mint`,
@@ -92,6 +99,7 @@ if (process.env.NODE_ENV !== 'production') {
     [LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_CREATED]: `LaunchPadToken already created`,
     [LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_GRADUATED]: `LaunchPadToken already graduated`,
     [LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_NOT_CREATED]: `LaunchPadToken not created`,
+    [LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_TRADING_NOT_ENABLED]: `LaunchPadToken trading is not enabled`,
     [LAUNCHPAD_FUN_ERROR__MATH_OVERFLOW]: `Math overflow`,
     [LAUNCHPAD_FUN_ERROR__PROTOCOL_ALREADY_PAUSED]: `Protocol is already paused`,
     [LAUNCHPAD_FUN_ERROR__PROTOCOL_CONFIG_INITIALIZED]: `ProtocolConfig already initialized`,

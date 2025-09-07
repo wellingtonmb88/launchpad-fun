@@ -2,6 +2,8 @@
 
 pub mod admin;
 pub mod creator;
+pub mod investor;
 
 pub use admin::*;
 pub use creator::*;
+pub use investor::*;

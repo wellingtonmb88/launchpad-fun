@@ -14,7 +14,8 @@ import {
   type ReadonlyUint8Array,
 } from '@solana/kit';
 import {
-  type ParsedCreateLaunchPadTokenInstruction,
+  type ParsedBuyTokenInstruction,
+  type ParsedCreateTokenInstruction,
   type ParsedInitializeInstruction,
 } from '../instructions';
 
@@ -54,7 +55,8 @@ export function identifyLaunchpadFunAccount(
 }
 
 export enum LaunchpadFunInstruction {
-  CreateLaunchPadToken,
+  BuyToken,
+  CreateToken,
   Initialize,
 }
 
@@ -66,12 +68,23 @@ export function identifyLaunchpadFunInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([79, 101, 154, 215, 208, 226, 116, 159])
+        new Uint8Array([138, 127, 14, 91, 38, 87, 115, 105])
       ),
       0
     )
   ) {
-    return LaunchpadFunInstruction.CreateLaunchPadToken;
+    return LaunchpadFunInstruction.BuyToken;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([84, 52, 204, 228, 24, 140, 234, 75])
+      ),
+      0
+    )
+  ) {
+    return LaunchpadFunInstruction.CreateToken;
   }
   if (
     containsBytes(
@@ -93,8 +106,11 @@ export type ParsedLaunchpadFunInstruction<
   TProgram extends string = 'HqY2bef2WwBtVSLJhii8GJ2aG3wFgDNECHYHc6Y1zHkR',
 > =
   | ({
-      instructionType: LaunchpadFunInstruction.CreateLaunchPadToken;
-    } & ParsedCreateLaunchPadTokenInstruction<TProgram>)
+      instructionType: LaunchpadFunInstruction.BuyToken;
+    } & ParsedBuyTokenInstruction<TProgram>)
+  | ({
+      instructionType: LaunchpadFunInstruction.CreateToken;
+    } & ParsedCreateTokenInstruction<TProgram>)
   | ({
       instructionType: LaunchpadFunInstruction.Initialize;
     } & ParsedInitializeInstruction<TProgram>);

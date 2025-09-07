@@ -7,8 +7,6 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
@@ -18,17 +16,15 @@ import {
   getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
+  getU64Decoder,
+  getU64Encoder,
   transformEncoder,
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -45,178 +41,179 @@ import {
   type ResolvedAccount,
 } from '../shared';
 
-export const CREATE_LAUNCH_PAD_TOKEN_DISCRIMINATOR = new Uint8Array([
-  79, 101, 154, 215, 208, 226, 116, 159,
+export const BUY_TOKEN_DISCRIMINATOR = new Uint8Array([
+  138, 127, 14, 91, 38, 87, 115, 105,
 ]);
 
-export function getCreateLaunchPadTokenDiscriminatorBytes() {
-  return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CREATE_LAUNCH_PAD_TOKEN_DISCRIMINATOR
-  );
+export function getBuyTokenDiscriminatorBytes() {
+  return fixEncoderSize(getBytesEncoder(), 8).encode(BUY_TOKEN_DISCRIMINATOR);
 }
 
-export type CreateLaunchPadTokenInstruction<
+export type BuyTokenInstruction<
   TProgram extends string = typeof LAUNCHPAD_FUN_PROGRAM_ADDRESS,
-  TAccountCreator extends string | AccountMeta<string> = string,
+  TAccountInvestor extends string | AccountMeta<string> = string,
   TAccountLaunchPadConfig extends string | AccountMeta<string> = string,
+  TAccountVault extends string | AccountMeta<string> = string,
   TAccountMint extends string | AccountMeta<string> = string,
+  TAccountVaultGraduation extends string | AccountMeta<string> = string,
   TAccountLaunchPadToken extends string | AccountMeta<string> = string,
   TAccountLaunchPadTokenAccount extends string | AccountMeta<string> = string,
-  TAccountVaultGraduation extends string | AccountMeta<string> = string,
+  TAccountInvestorTokenAccount extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
     | AccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
-  TAccountSystemProgram extends
-    | string
-    | AccountMeta<string> = '11111111111111111111111111111111',
   TAccountAssociatedTokenProgram extends
     | string
     | AccountMeta<string> = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
+  TAccountSystemProgram extends
+    | string
+    | AccountMeta<string> = '11111111111111111111111111111111',
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
-      TAccountCreator extends string
-        ? WritableSignerAccount<TAccountCreator> &
-            AccountSignerMeta<TAccountCreator>
-        : TAccountCreator,
+      TAccountInvestor extends string
+        ? WritableSignerAccount<TAccountInvestor> &
+            AccountSignerMeta<TAccountInvestor>
+        : TAccountInvestor,
       TAccountLaunchPadConfig extends string
         ? ReadonlyAccount<TAccountLaunchPadConfig>
         : TAccountLaunchPadConfig,
+      TAccountVault extends string
+        ? WritableAccount<TAccountVault>
+        : TAccountVault,
       TAccountMint extends string
-        ? WritableSignerAccount<TAccountMint> & AccountSignerMeta<TAccountMint>
+        ? ReadonlyAccount<TAccountMint>
         : TAccountMint,
+      TAccountVaultGraduation extends string
+        ? WritableAccount<TAccountVaultGraduation>
+        : TAccountVaultGraduation,
       TAccountLaunchPadToken extends string
         ? WritableAccount<TAccountLaunchPadToken>
         : TAccountLaunchPadToken,
       TAccountLaunchPadTokenAccount extends string
         ? WritableAccount<TAccountLaunchPadTokenAccount>
         : TAccountLaunchPadTokenAccount,
-      TAccountVaultGraduation extends string
-        ? WritableAccount<TAccountVaultGraduation>
-        : TAccountVaultGraduation,
+      TAccountInvestorTokenAccount extends string
+        ? WritableAccount<TAccountInvestorTokenAccount>
+        : TAccountInvestorTokenAccount,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
       TAccountAssociatedTokenProgram extends string
         ? ReadonlyAccount<TAccountAssociatedTokenProgram>
         : TAccountAssociatedTokenProgram,
+      TAccountSystemProgram extends string
+        ? ReadonlyAccount<TAccountSystemProgram>
+        : TAccountSystemProgram,
       ...TRemainingAccounts,
     ]
   >;
 
-export type CreateLaunchPadTokenInstructionData = {
+export type BuyTokenInstructionData = {
   discriminator: ReadonlyUint8Array;
-  name: string;
-  symbol: string;
-  uri: string;
+  amount: bigint;
 };
 
-export type CreateLaunchPadTokenInstructionDataArgs = {
-  name: string;
-  symbol: string;
-  uri: string;
-};
+export type BuyTokenInstructionDataArgs = { amount: number | bigint };
 
-export function getCreateLaunchPadTokenInstructionDataEncoder(): Encoder<CreateLaunchPadTokenInstructionDataArgs> {
+export function getBuyTokenInstructionDataEncoder(): FixedSizeEncoder<BuyTokenInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-      ['symbol', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-      ['uri', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+      ['amount', getU64Encoder()],
     ]),
-    (value) => ({
-      ...value,
-      discriminator: CREATE_LAUNCH_PAD_TOKEN_DISCRIMINATOR,
-    })
+    (value) => ({ ...value, discriminator: BUY_TOKEN_DISCRIMINATOR })
   );
 }
 
-export function getCreateLaunchPadTokenInstructionDataDecoder(): Decoder<CreateLaunchPadTokenInstructionData> {
+export function getBuyTokenInstructionDataDecoder(): FixedSizeDecoder<BuyTokenInstructionData> {
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['name', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ['symbol', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ['uri', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ['amount', getU64Decoder()],
   ]);
 }
 
-export function getCreateLaunchPadTokenInstructionDataCodec(): Codec<
-  CreateLaunchPadTokenInstructionDataArgs,
-  CreateLaunchPadTokenInstructionData
+export function getBuyTokenInstructionDataCodec(): FixedSizeCodec<
+  BuyTokenInstructionDataArgs,
+  BuyTokenInstructionData
 > {
   return combineCodec(
-    getCreateLaunchPadTokenInstructionDataEncoder(),
-    getCreateLaunchPadTokenInstructionDataDecoder()
+    getBuyTokenInstructionDataEncoder(),
+    getBuyTokenInstructionDataDecoder()
   );
 }
 
-export type CreateLaunchPadTokenAsyncInput<
-  TAccountCreator extends string = string,
+export type BuyTokenAsyncInput<
+  TAccountInvestor extends string = string,
   TAccountLaunchPadConfig extends string = string,
+  TAccountVault extends string = string,
   TAccountMint extends string = string,
+  TAccountVaultGraduation extends string = string,
   TAccountLaunchPadToken extends string = string,
   TAccountLaunchPadTokenAccount extends string = string,
-  TAccountVaultGraduation extends string = string,
+  TAccountInvestorTokenAccount extends string = string,
   TAccountTokenProgram extends string = string,
-  TAccountSystemProgram extends string = string,
   TAccountAssociatedTokenProgram extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
-  creator: TransactionSigner<TAccountCreator>;
+  investor: TransactionSigner<TAccountInvestor>;
   launchPadConfig?: Address<TAccountLaunchPadConfig>;
-  mint: TransactionSigner<TAccountMint>;
+  vault?: Address<TAccountVault>;
+  mint: Address<TAccountMint>;
+  vaultGraduation?: Address<TAccountVaultGraduation>;
   launchPadToken?: Address<TAccountLaunchPadToken>;
   launchPadTokenAccount?: Address<TAccountLaunchPadTokenAccount>;
-  vaultGraduation?: Address<TAccountVaultGraduation>;
+  investorTokenAccount?: Address<TAccountInvestorTokenAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
-  systemProgram?: Address<TAccountSystemProgram>;
   associatedTokenProgram?: Address<TAccountAssociatedTokenProgram>;
-  name: CreateLaunchPadTokenInstructionDataArgs['name'];
-  symbol: CreateLaunchPadTokenInstructionDataArgs['symbol'];
-  uri: CreateLaunchPadTokenInstructionDataArgs['uri'];
+  systemProgram?: Address<TAccountSystemProgram>;
+  amount: BuyTokenInstructionDataArgs['amount'];
 };
 
-export async function getCreateLaunchPadTokenInstructionAsync<
-  TAccountCreator extends string,
+export async function getBuyTokenInstructionAsync<
+  TAccountInvestor extends string,
   TAccountLaunchPadConfig extends string,
+  TAccountVault extends string,
   TAccountMint extends string,
+  TAccountVaultGraduation extends string,
   TAccountLaunchPadToken extends string,
   TAccountLaunchPadTokenAccount extends string,
-  TAccountVaultGraduation extends string,
+  TAccountInvestorTokenAccount extends string,
   TAccountTokenProgram extends string,
-  TAccountSystemProgram extends string,
   TAccountAssociatedTokenProgram extends string,
+  TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof LAUNCHPAD_FUN_PROGRAM_ADDRESS,
 >(
-  input: CreateLaunchPadTokenAsyncInput<
-    TAccountCreator,
+  input: BuyTokenAsyncInput<
+    TAccountInvestor,
     TAccountLaunchPadConfig,
+    TAccountVault,
     TAccountMint,
+    TAccountVaultGraduation,
     TAccountLaunchPadToken,
     TAccountLaunchPadTokenAccount,
-    TAccountVaultGraduation,
+    TAccountInvestorTokenAccount,
     TAccountTokenProgram,
-    TAccountSystemProgram,
-    TAccountAssociatedTokenProgram
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress }
 ): Promise<
-  CreateLaunchPadTokenInstruction<
+  BuyTokenInstruction<
     TProgramAddress,
-    TAccountCreator,
+    TAccountInvestor,
     TAccountLaunchPadConfig,
+    TAccountVault,
     TAccountMint,
+    TAccountVaultGraduation,
     TAccountLaunchPadToken,
     TAccountLaunchPadTokenAccount,
-    TAccountVaultGraduation,
+    TAccountInvestorTokenAccount,
     TAccountTokenProgram,
-    TAccountSystemProgram,
-    TAccountAssociatedTokenProgram
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram
   >
 > {
   // Program address.
@@ -225,24 +222,29 @@ export async function getCreateLaunchPadTokenInstructionAsync<
 
   // Original accounts.
   const originalAccounts = {
-    creator: { value: input.creator ?? null, isWritable: true },
+    investor: { value: input.investor ?? null, isWritable: true },
     launchPadConfig: {
       value: input.launchPadConfig ?? null,
       isWritable: false,
     },
-    mint: { value: input.mint ?? null, isWritable: true },
+    vault: { value: input.vault ?? null, isWritable: true },
+    mint: { value: input.mint ?? null, isWritable: false },
+    vaultGraduation: { value: input.vaultGraduation ?? null, isWritable: true },
     launchPadToken: { value: input.launchPadToken ?? null, isWritable: true },
     launchPadTokenAccount: {
       value: input.launchPadTokenAccount ?? null,
       isWritable: true,
     },
-    vaultGraduation: { value: input.vaultGraduation ?? null, isWritable: true },
+    investorTokenAccount: {
+      value: input.investorTokenAccount ?? null,
+      isWritable: true,
+    },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     associatedTokenProgram: {
       value: input.associatedTokenProgram ?? null,
       isWritable: false,
     },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -263,6 +265,28 @@ export async function getCreateLaunchPadTokenInstructionAsync<
             105, 103, 58,
           ])
         ),
+      ],
+    });
+  }
+  if (!accounts.vault.value) {
+    accounts.vault.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getBytesEncoder().encode(new Uint8Array([118, 97, 117, 108, 116, 58])),
+      ],
+    });
+  }
+  if (!accounts.vaultGraduation.value) {
+    accounts.vaultGraduation.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getBytesEncoder().encode(
+          new Uint8Array([
+            118, 97, 117, 108, 116, 95, 103, 114, 97, 100, 117, 97, 116, 105,
+            111, 110, 58,
+          ])
+        ),
+        getAddressEncoder().encode(expectAddress(accounts.mint.value)),
       ],
     });
   }
@@ -297,122 +321,131 @@ export async function getCreateLaunchPadTokenInstructionAsync<
       ],
     });
   }
-  if (!accounts.vaultGraduation.value) {
-    accounts.vaultGraduation.value = await getProgramDerivedAddress({
-      programAddress,
+  if (!accounts.investorTokenAccount.value) {
+    accounts.investorTokenAccount.value = await getProgramDerivedAddress({
+      programAddress:
+        'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>,
       seeds: [
-        getBytesEncoder().encode(
-          new Uint8Array([
-            118, 97, 117, 108, 116, 95, 103, 114, 97, 100, 117, 97, 116, 105,
-            111, 110, 58,
-          ])
-        ),
+        getAddressEncoder().encode(expectAddress(accounts.investor.value)),
+        getAddressEncoder().encode(expectAddress(accounts.tokenProgram.value)),
         getAddressEncoder().encode(expectAddress(accounts.mint.value)),
       ],
     });
-  }
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
   if (!accounts.associatedTokenProgram.value) {
     accounts.associatedTokenProgram.value =
       'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>;
   }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
     accounts: [
-      getAccountMeta(accounts.creator),
+      getAccountMeta(accounts.investor),
       getAccountMeta(accounts.launchPadConfig),
+      getAccountMeta(accounts.vault),
       getAccountMeta(accounts.mint),
+      getAccountMeta(accounts.vaultGraduation),
       getAccountMeta(accounts.launchPadToken),
       getAccountMeta(accounts.launchPadTokenAccount),
-      getAccountMeta(accounts.vaultGraduation),
+      getAccountMeta(accounts.investorTokenAccount),
       getAccountMeta(accounts.tokenProgram),
-      getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.associatedTokenProgram),
+      getAccountMeta(accounts.systemProgram),
     ],
     programAddress,
-    data: getCreateLaunchPadTokenInstructionDataEncoder().encode(
-      args as CreateLaunchPadTokenInstructionDataArgs
+    data: getBuyTokenInstructionDataEncoder().encode(
+      args as BuyTokenInstructionDataArgs
     ),
-  } as CreateLaunchPadTokenInstruction<
+  } as BuyTokenInstruction<
     TProgramAddress,
-    TAccountCreator,
+    TAccountInvestor,
     TAccountLaunchPadConfig,
+    TAccountVault,
     TAccountMint,
+    TAccountVaultGraduation,
     TAccountLaunchPadToken,
     TAccountLaunchPadTokenAccount,
-    TAccountVaultGraduation,
+    TAccountInvestorTokenAccount,
     TAccountTokenProgram,
-    TAccountSystemProgram,
-    TAccountAssociatedTokenProgram
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram
   >;
 
   return instruction;
 }
 
-export type CreateLaunchPadTokenInput<
-  TAccountCreator extends string = string,
+export type BuyTokenInput<
+  TAccountInvestor extends string = string,
   TAccountLaunchPadConfig extends string = string,
+  TAccountVault extends string = string,
   TAccountMint extends string = string,
+  TAccountVaultGraduation extends string = string,
   TAccountLaunchPadToken extends string = string,
   TAccountLaunchPadTokenAccount extends string = string,
-  TAccountVaultGraduation extends string = string,
+  TAccountInvestorTokenAccount extends string = string,
   TAccountTokenProgram extends string = string,
-  TAccountSystemProgram extends string = string,
   TAccountAssociatedTokenProgram extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
-  creator: TransactionSigner<TAccountCreator>;
+  investor: TransactionSigner<TAccountInvestor>;
   launchPadConfig: Address<TAccountLaunchPadConfig>;
-  mint: TransactionSigner<TAccountMint>;
+  vault: Address<TAccountVault>;
+  mint: Address<TAccountMint>;
+  vaultGraduation: Address<TAccountVaultGraduation>;
   launchPadToken: Address<TAccountLaunchPadToken>;
   launchPadTokenAccount: Address<TAccountLaunchPadTokenAccount>;
-  vaultGraduation: Address<TAccountVaultGraduation>;
+  investorTokenAccount: Address<TAccountInvestorTokenAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
-  systemProgram?: Address<TAccountSystemProgram>;
   associatedTokenProgram?: Address<TAccountAssociatedTokenProgram>;
-  name: CreateLaunchPadTokenInstructionDataArgs['name'];
-  symbol: CreateLaunchPadTokenInstructionDataArgs['symbol'];
-  uri: CreateLaunchPadTokenInstructionDataArgs['uri'];
+  systemProgram?: Address<TAccountSystemProgram>;
+  amount: BuyTokenInstructionDataArgs['amount'];
 };
 
-export function getCreateLaunchPadTokenInstruction<
-  TAccountCreator extends string,
+export function getBuyTokenInstruction<
+  TAccountInvestor extends string,
   TAccountLaunchPadConfig extends string,
+  TAccountVault extends string,
   TAccountMint extends string,
+  TAccountVaultGraduation extends string,
   TAccountLaunchPadToken extends string,
   TAccountLaunchPadTokenAccount extends string,
-  TAccountVaultGraduation extends string,
+  TAccountInvestorTokenAccount extends string,
   TAccountTokenProgram extends string,
-  TAccountSystemProgram extends string,
   TAccountAssociatedTokenProgram extends string,
+  TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof LAUNCHPAD_FUN_PROGRAM_ADDRESS,
 >(
-  input: CreateLaunchPadTokenInput<
-    TAccountCreator,
+  input: BuyTokenInput<
+    TAccountInvestor,
     TAccountLaunchPadConfig,
+    TAccountVault,
     TAccountMint,
+    TAccountVaultGraduation,
     TAccountLaunchPadToken,
     TAccountLaunchPadTokenAccount,
-    TAccountVaultGraduation,
+    TAccountInvestorTokenAccount,
     TAccountTokenProgram,
-    TAccountSystemProgram,
-    TAccountAssociatedTokenProgram
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress }
-): CreateLaunchPadTokenInstruction<
+): BuyTokenInstruction<
   TProgramAddress,
-  TAccountCreator,
+  TAccountInvestor,
   TAccountLaunchPadConfig,
+  TAccountVault,
   TAccountMint,
+  TAccountVaultGraduation,
   TAccountLaunchPadToken,
   TAccountLaunchPadTokenAccount,
-  TAccountVaultGraduation,
+  TAccountInvestorTokenAccount,
   TAccountTokenProgram,
-  TAccountSystemProgram,
-  TAccountAssociatedTokenProgram
+  TAccountAssociatedTokenProgram,
+  TAccountSystemProgram
 > {
   // Program address.
   const programAddress =
@@ -420,24 +453,29 @@ export function getCreateLaunchPadTokenInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    creator: { value: input.creator ?? null, isWritable: true },
+    investor: { value: input.investor ?? null, isWritable: true },
     launchPadConfig: {
       value: input.launchPadConfig ?? null,
       isWritable: false,
     },
-    mint: { value: input.mint ?? null, isWritable: true },
+    vault: { value: input.vault ?? null, isWritable: true },
+    mint: { value: input.mint ?? null, isWritable: false },
+    vaultGraduation: { value: input.vaultGraduation ?? null, isWritable: true },
     launchPadToken: { value: input.launchPadToken ?? null, isWritable: true },
     launchPadTokenAccount: {
       value: input.launchPadTokenAccount ?? null,
       isWritable: true,
     },
-    vaultGraduation: { value: input.vaultGraduation ?? null, isWritable: true },
+    investorTokenAccount: {
+      value: input.investorTokenAccount ?? null,
+      isWritable: true,
+    },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     associatedTokenProgram: {
       value: input.associatedTokenProgram ?? null,
       isWritable: false,
     },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -452,76 +490,82 @@ export function getCreateLaunchPadTokenInstruction<
     accounts.tokenProgram.value =
       'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' as Address<'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'>;
   }
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
-  }
   if (!accounts.associatedTokenProgram.value) {
     accounts.associatedTokenProgram.value =
       'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>;
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
     accounts: [
-      getAccountMeta(accounts.creator),
+      getAccountMeta(accounts.investor),
       getAccountMeta(accounts.launchPadConfig),
+      getAccountMeta(accounts.vault),
       getAccountMeta(accounts.mint),
+      getAccountMeta(accounts.vaultGraduation),
       getAccountMeta(accounts.launchPadToken),
       getAccountMeta(accounts.launchPadTokenAccount),
-      getAccountMeta(accounts.vaultGraduation),
+      getAccountMeta(accounts.investorTokenAccount),
       getAccountMeta(accounts.tokenProgram),
-      getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.associatedTokenProgram),
+      getAccountMeta(accounts.systemProgram),
     ],
     programAddress,
-    data: getCreateLaunchPadTokenInstructionDataEncoder().encode(
-      args as CreateLaunchPadTokenInstructionDataArgs
+    data: getBuyTokenInstructionDataEncoder().encode(
+      args as BuyTokenInstructionDataArgs
     ),
-  } as CreateLaunchPadTokenInstruction<
+  } as BuyTokenInstruction<
     TProgramAddress,
-    TAccountCreator,
+    TAccountInvestor,
     TAccountLaunchPadConfig,
+    TAccountVault,
     TAccountMint,
+    TAccountVaultGraduation,
     TAccountLaunchPadToken,
     TAccountLaunchPadTokenAccount,
-    TAccountVaultGraduation,
+    TAccountInvestorTokenAccount,
     TAccountTokenProgram,
-    TAccountSystemProgram,
-    TAccountAssociatedTokenProgram
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram
   >;
 
   return instruction;
 }
 
-export type ParsedCreateLaunchPadTokenInstruction<
+export type ParsedBuyTokenInstruction<
   TProgram extends string = typeof LAUNCHPAD_FUN_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    creator: TAccountMetas[0];
+    investor: TAccountMetas[0];
     launchPadConfig: TAccountMetas[1];
-    mint: TAccountMetas[2];
-    launchPadToken: TAccountMetas[3];
-    launchPadTokenAccount: TAccountMetas[4];
-    vaultGraduation: TAccountMetas[5];
-    tokenProgram: TAccountMetas[6];
-    systemProgram: TAccountMetas[7];
-    associatedTokenProgram: TAccountMetas[8];
+    vault: TAccountMetas[2];
+    mint: TAccountMetas[3];
+    vaultGraduation: TAccountMetas[4];
+    launchPadToken: TAccountMetas[5];
+    launchPadTokenAccount: TAccountMetas[6];
+    investorTokenAccount: TAccountMetas[7];
+    tokenProgram: TAccountMetas[8];
+    associatedTokenProgram: TAccountMetas[9];
+    systemProgram: TAccountMetas[10];
   };
-  data: CreateLaunchPadTokenInstructionData;
+  data: BuyTokenInstructionData;
 };
 
-export function parseCreateLaunchPadTokenInstruction<
+export function parseBuyTokenInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
-): ParsedCreateLaunchPadTokenInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 9) {
+): ParsedBuyTokenInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 11) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -534,18 +578,18 @@ export function parseCreateLaunchPadTokenInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      creator: getNextAccount(),
+      investor: getNextAccount(),
       launchPadConfig: getNextAccount(),
+      vault: getNextAccount(),
       mint: getNextAccount(),
+      vaultGraduation: getNextAccount(),
       launchPadToken: getNextAccount(),
       launchPadTokenAccount: getNextAccount(),
-      vaultGraduation: getNextAccount(),
+      investorTokenAccount: getNextAccount(),
       tokenProgram: getNextAccount(),
-      systemProgram: getNextAccount(),
       associatedTokenProgram: getNextAccount(),
+      systemProgram: getNextAccount(),
     },
-    data: getCreateLaunchPadTokenInstructionDataDecoder().decode(
-      instruction.data
-    ),
+    data: getBuyTokenInstructionDataDecoder().decode(instruction.data),
   };
 }

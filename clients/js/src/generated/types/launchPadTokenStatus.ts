@@ -18,6 +18,7 @@ import {
 export enum LaunchPadTokenStatus {
   Unknown,
   TradingEnabled,
+  ReadyToGraduate,
   Graduated,
 }
 

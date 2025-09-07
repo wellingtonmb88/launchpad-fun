@@ -50,6 +50,9 @@ pub enum LaunchPadErrorCode {
     #[msg("LaunchPadToken already graduated")]
     LaunchPadTokenAlreadyGraduated,
 
+    #[msg("LaunchPadToken trading is not enabled")]
+    LaunchPadTokenTradingNotEnabled,
+
     #[msg("Invalid token name length")]
     InvalidTokenNameLength,
 
@@ -61,4 +64,7 @@ pub enum LaunchPadErrorCode {
 
     #[msg("Math overflow")]
     MathOverflow,
+
+    #[msg("Insufficient token liquidity")]
+    InsufficientTokenLiquidity,
 }

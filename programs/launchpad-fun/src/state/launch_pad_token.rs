@@ -93,4 +93,34 @@ impl LaunchPadToken {
         });
         Ok(())
     }
+
+    pub fn update_virtual_reserves(
+        &mut self,
+        new_virtual_token_amount: u64,
+        new_virtual_asset_amount: u64,
+    ) -> Result<()> {
+        self.virtual_token_amount = new_virtual_token_amount;
+        self.virtual_asset_amount = new_virtual_asset_amount;
+        Ok(())
+    }
+
+    pub fn increase_virtual_graduation_amount(&mut self, amount: u64) -> Result<()> {
+        self.virtual_graduation_amount = amount
+            .checked_add(self.virtual_graduation_amount)
+            .ok_or(LaunchPadErrorCode::MathOverflow)?;
+        Ok(())
+    }
+
+    pub fn decrease_virtual_graduation_amount(&mut self, amount: u64) -> Result<()> {
+        self.virtual_graduation_amount = self
+            .virtual_graduation_amount
+            .checked_sub(amount)
+            .ok_or(LaunchPadErrorCode::MathOverflow)?;
+        Ok(())
+    }
+
+    pub fn update_status(&mut self, new_status: LaunchPadTokenStatus) -> Result<()> {
+        self.status = new_status;
+        Ok(())
+    }
 }

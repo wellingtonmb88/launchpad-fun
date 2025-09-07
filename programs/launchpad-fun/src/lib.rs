@@ -31,11 +31,13 @@ pub mod launchpad_fun {
         Ok(())
     }
 
-    pub fn create_launch_pad_token(
-        ctx: Context<CreateLaunchPadToken>,
-        args: CreateLaunchPadTokenArgs,
-    ) -> Result<()> {
-        create_launch_pad_token::handler(ctx, args)?;
+    pub fn create_token(ctx: Context<CreateToken>, args: CreateTokenArgs) -> Result<()> {
+        create_token::handler(ctx, args)?;
+        Ok(())
+    }
+
+    pub fn buy_token(ctx: Context<BuyToken>, args: BuyTokenArgs) -> Result<()> {
+        buy_token::handler(ctx, args)?;
         Ok(())
     }
 }

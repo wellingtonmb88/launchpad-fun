@@ -17,5 +17,6 @@ pub enum LaunchPadTokenStatus {
     #[default]
     Unknown,
     TradingEnabled,
+    ReadyToGraduate,
     Graduated,
 }

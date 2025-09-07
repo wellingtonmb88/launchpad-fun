@@ -29,15 +29,11 @@ import { expect } from "chai";
 import * as programClient from "../clients/js/src/generated";
 import { getSetComputeUnitLimitInstruction } from "@solana-program/compute-budget";
 import {
-  CreateLaunchPadTokenInstructionDataArgs,
+  BuyTokenInstructionDataArgs,
+  CreateTokenInstructionDataArgs,
   InitializeInstructionDataArgs,
 } from "../clients/js/src/generated";
-import {
-  getAccount,
-  getAssociatedTokenAddressSync,
-  TOKEN_2022_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
+import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { findAssociatedTokenPda } from "@solana-program/token";
 
 type TestEnvironment = {
@@ -50,8 +46,14 @@ type TestEnvironment = {
 
 const createTestEnvironment = async (): Promise<TestEnvironment> => {
   const rpcClient = createDefaultSolanaClient();
-  const authority = await generateKeyPairSignerWithSol(rpcClient);
-  const creator = await generateKeyPairSignerWithSol(rpcClient);
+  const authority = await generateKeyPairSignerWithSol(
+    rpcClient,
+    10_000_000_000n
+  );
+  const creator = await generateKeyPairSignerWithSol(
+    rpcClient,
+    10_000_000_000n
+  );
   const mint = await generateKeyPairSigner();
   return { rpcClient, authority, creator, mint, programClient };
 };
@@ -139,7 +141,7 @@ const displaySolanaError = (e: any) => {
   }
 };
 
-describe("init_launch_pad_config", () => {
+describe("Launch Pad Fun", () => {
   let testEnv: TestEnvironment;
 
   before(async () => {
@@ -167,9 +169,9 @@ describe("init_launch_pad_config", () => {
 
     // prepare args
     const args = {
-      assetRate: 7n,
+      assetRate: 300000n,
       creatorSellDelay: BigInt(Math.floor(Date.now() / 1000) + 60 * 60 * 1), // 1 hour in future
-      graduateThreshold: 50n,
+      graduateThreshold: 450_000_000_000n, // 450 SOLs
       protocolBuyFee: 5000, // basis points
       protocolSellFee: 7000,
     } as InitializeInstructionDataArgs;
@@ -216,9 +218,9 @@ describe("init_launch_pad_config", () => {
     expect(cfg.data.authority.toString()).to.equal(
       authority.address.toString()
     );
-    expect(cfg.data.assetRate).to.equal(7n);
-    expect(cfg.data.protocolBuyFee).to.equal(5000);
-    expect(cfg.data.protocolSellFee).to.equal(7000);
+    expect(cfg.data.assetRate).to.equal(args.assetRate);
+    expect(cfg.data.protocolBuyFee).to.equal(args.protocolBuyFee);
+    expect(cfg.data.protocolSellFee).to.equal(args.protocolSellFee);
     expect(cfg.data.creatorSellDelay).to.equal(args.creatorSellDelay);
     expect(cfg.data.graduateThreshold).to.equal(args.graduateThreshold);
     expect(cfg.data.status).to.equal(1); // ProtocolStatus::Active (enum idx)
@@ -235,7 +237,7 @@ describe("init_launch_pad_config", () => {
     expect(BigInt(vaultAcct.value.lamports.toString())).to.equal(890880n);
   });
 
-  it("creates a launch pad token", async () => {
+  it("creates a token", async () => {
     // const authority = new anchor.web3.Keypair();
     const { rpcClient, programClient: program, creator, mint } = testEnv;
     const programId = new anchor.web3.PublicKey(
@@ -270,20 +272,16 @@ describe("init_launch_pad_config", () => {
       /** The mint address of the associated token account. */
       mint: mint.address,
     });
-    console.log(
-      "launchPadTokenAccountPda",
-      launchPadTokenAccountPda.toString()
-    );
 
     // prepare args
     const args = {
       name: "New Meme Token",
       symbol: "NMT",
       uri: "https://example.com/nmt.json",
-    } as CreateLaunchPadTokenInstructionDataArgs;
+    } as CreateTokenInstructionDataArgs;
 
     // call initialize
-    const ix = await program.getCreateLaunchPadTokenInstructionAsync({
+    const ix = await program.getCreateTokenInstructionAsync({
       creator: creator,
       mint: mint,
       ...args,
@@ -324,11 +322,11 @@ describe("init_launch_pad_config", () => {
 
     expect(token.data.creator.toString()).to.equal(creator.address.toString());
     expect(token.data.mint.toString()).to.equal(mint.address.toString());
-    expect(token.data.virtualAssetAmount).to.equal(4285714285700000n);
+    expect(token.data.virtualAssetAmount).to.equal(100000000000n);
     expect(token.data.virtualTokenAmount).to.equal(1000000000000000000n);
-    expect(token.data.currentK).to.equal(4285714285700000000000000000000000n);
+    expect(token.data.currentK).to.equal(100000000000000000000000000000n);
     expect(token.data.virtualGraduationAmount).to.equal(0n);
-    expect(token.data.status).to.equal(1); // ProtocolStatus::Active (enum idx)
+    expect(token.data.status).to.equal(1); // LaunchPadTokenStatus::TradingEnabled (enum idx)
     expect(token.data.bump).to.equal(launchPadTokenBump);
     expect(token.data.vaultBump).to.equal(graduationVaultBump);
 
@@ -341,11 +339,145 @@ describe("init_launch_pad_config", () => {
     // has some lamports deposited (rent exempt at least)
     expect(BigInt(graduationVault.value.lamports.toString())).to.equal(890880n);
 
-    const launchPadTokenAccount = await rpcClient.rpc.getTokenAccountBalance(
-      launchPadTokenAccountPda.toString() as Address
-    ).send();
+    const launchPadTokenAccount = await rpcClient.rpc
+      .getTokenAccountBalance(launchPadTokenAccountPda.toString() as Address)
+      .send();
 
     expect(launchPadTokenAccount).to.not.be.null;
-    expect(launchPadTokenAccount.value.amount).to.equal('1000000000000000000');
+    expect(launchPadTokenAccount.value.amount).to.equal("1000000000000000000");
+  });
+
+  it("buys a token", async () => {
+    const { rpcClient, programClient: program, creator, mint } = testEnv;
+    const programId = new anchor.web3.PublicKey(
+      program.LAUNCHPAD_FUN_PROGRAM_ADDRESS
+    );
+
+    const codec = getBase58Encoder();
+    const mintAddressBytes = codec.encode(mint.address.toString());
+
+    const [launchPadTokenPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("launch_pad_token:"), Buffer.from(mintAddressBytes)],
+      programId
+    );
+
+    const [graduationVaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault_graduation:"), Buffer.from(mintAddressBytes)],
+      programId
+    );
+
+    const [vaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault:")],
+      programId
+    );
+
+    const [launchPadConfigPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("launch_pad_config:")],
+      programId
+    );
+
+    const [launchPadTokenAccountPda] = await findAssociatedTokenPda({
+      /** The wallet address of the associated token account. */
+      owner: launchPadConfigPda.toBase58() as Address,
+      /** The address of the token program to use. */
+      tokenProgram: TOKEN_2022_PROGRAM_ID.toBase58() as Address,
+      /** The mint address of the associated token account. */
+      mint: mint.address,
+    });
+
+    const [investorTokenAccountPda] = await findAssociatedTokenPda({
+      /** The wallet address of the associated token account. */
+      owner: creator.address,
+      /** The address of the token program to use. */
+      tokenProgram: TOKEN_2022_PROGRAM_ID.toBase58() as Address,
+      /** The mint address of the associated token account. */
+      mint: mint.address,
+    });
+
+    // prepare args
+    const args = {
+      amount: 1_000_000_000n,
+    } as BuyTokenInstructionDataArgs;
+
+    const ix = await program.getBuyTokenInstructionAsync({
+      investor: creator,
+      mint: mint.address,
+      ...args,
+    });
+
+    const instructions = [
+      getSetComputeUnitLimitInstruction({ units: 200_000 }), // <- Here we add the CU limit instruction.
+      ix,
+    ];
+    try {
+      const txSignature = await pipe(
+        await createDefaultTransaction(testEnv),
+        (tx) => appendTransactionMessageInstructions(instructions, tx),
+        (tx) => signAndSendTransaction(testEnv.rpcClient, tx, "confirmed")
+      );
+      console.log("tx", txSignature.toString());
+    } catch (e) {
+      console.error("error", e);
+      if (
+        testEnv.programClient.isLaunchpadFunError(e, {
+          instructions,
+        })
+      ) {
+        console.error(
+          "Program error:",
+          e,
+          testEnv.programClient.getLaunchpadFunErrorMessage(e.context.code)
+        );
+        throw e;
+      } else {
+        displaySolanaError(e);
+      }
+    }
+
+    let token = await testEnv.programClient.fetchLaunchPadToken(
+      testEnv.rpcClient.rpc,
+      launchPadTokenPda.toString() as Address,
+      { commitment: "confirmed" }
+    );
+
+    expect(token.data.creator.toString()).to.equal(creator.address.toString());
+    expect(token.data.mint.toString()).to.equal(mint.address.toString());
+    expect(token.data.virtualAssetAmount).to.equal(100995000000n);
+    expect(token.data.virtualTokenAmount).to.equal(990148027130055943n);
+    expect(token.data.currentK).to.equal(100000000000000000000000000000n);
+    expect(token.data.virtualGraduationAmount).to.equal(995000000n);
+    expect(token.data.status).to.equal(1); // LaunchPadTokenStatus::TradingEnabled (enum idx)
+
+    const graduationVault = await rpcClient.rpc
+      .getAccountInfo(graduationVaultPda.toString() as Address)
+      .send();
+
+    expect(graduationVault).to.not.be.null;
+
+    expect(BigInt(graduationVault.value.lamports.toString())).to.equal(
+      995_890_880n
+    );
+
+    const launchPadTokenAccount = await rpcClient.rpc
+      .getTokenAccountBalance(launchPadTokenAccountPda.toString() as Address)
+      .send();
+
+    expect(launchPadTokenAccount).to.not.be.null;
+    expect(launchPadTokenAccount.value.amount).to.equal("990148027130055943");
+
+    // verify vault exists and has rent-exempt lamports
+    const vault = await rpcClient.rpc
+      .getAccountInfo(vaultPda.toString() as Address)
+      .send();
+
+    expect(vault).to.not.be.null;
+    expect(BigInt(vault.value.lamports.toString())).to.equal(5_890_880n);
+
+    const investorTokenAccount = await rpcClient.rpc
+      .getTokenAccountBalance(investorTokenAccountPda.toString() as Address)
+      .send();
+
+    expect(investorTokenAccount).to.not.be.null;
+    expect(investorTokenAccount.value.amount).to.equal("9851972869944057"); //9.851.972,869944057
   });
 });

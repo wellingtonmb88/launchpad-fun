@@ -26,14 +26,14 @@ use crate::{
 };
 
 #[derive(AnchorDeserialize, AnchorSerialize)]
-pub struct CreateLaunchPadTokenArgs {
+pub struct CreateTokenArgs {
     pub name: String,
     pub symbol: String,
     pub uri: String,
 }
 
 #[derive(Accounts)]
-pub struct CreateLaunchPadToken<'info> {
+pub struct CreateToken<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
 
@@ -83,12 +83,8 @@ pub struct CreateLaunchPadToken<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
-impl<'info> CreateLaunchPadToken<'info> {
-    pub fn create(
-        &mut self,
-        args: CreateLaunchPadTokenArgs,
-        bumps: CreateLaunchPadTokenBumps,
-    ) -> Result<()> {
+impl<'info> CreateToken<'info> {
+    pub fn create(&mut self, args: CreateTokenArgs, bumps: CreateTokenBumps) -> Result<()> {
         require!(
             self.launch_pad_config.status == ProtocolStatus::Active,
             LaunchPadErrorCode::ProtocolConfigNotActive
@@ -126,8 +122,8 @@ impl<'info> CreateLaunchPadToken<'info> {
         Ok(())
     }
 
-    fn init_mint_account(&self, args: &CreateLaunchPadTokenArgs) -> Result<()> {
-        let CreateLaunchPadTokenArgs { name, symbol, uri } = args;
+    fn init_mint_account(&self, args: &CreateTokenArgs) -> Result<()> {
+        let CreateTokenArgs { name, symbol, uri } = args;
 
         // Define token metadata
         let token_metadata = TokenMetadata {
@@ -164,10 +160,10 @@ impl<'info> CreateLaunchPadToken<'info> {
 
     fn init_token_metadata(
         &self,
-        args: &CreateLaunchPadTokenArgs,
+        args: &CreateTokenArgs,
         launch_pad_config_bump: u8,
     ) -> Result<()> {
-        let CreateLaunchPadTokenArgs { name, symbol, uri } = args;
+        let CreateTokenArgs { name, symbol, uri } = args;
         let signer: &[&[&[u8]]] = &[&[LaunchPadConfig::SEED, &[launch_pad_config_bump]]];
         token_metadata_initialize(
             CpiContext::new_with_signer(
@@ -236,7 +232,7 @@ impl<'info> CreateLaunchPadToken<'info> {
     }
 }
 
-pub fn handler(ctx: Context<CreateLaunchPadToken>, args: CreateLaunchPadTokenArgs) -> Result<()> {
+pub fn handler(ctx: Context<CreateToken>, args: CreateTokenArgs) -> Result<()> {
     ctx.accounts.create(args, ctx.bumps)?;
     msg!("Launch pad token created");
     Ok(())
