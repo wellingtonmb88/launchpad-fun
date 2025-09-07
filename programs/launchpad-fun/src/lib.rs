@@ -27,7 +27,7 @@ pub mod launchpad_fun {
         ctx: Context<InitLaunchPadConfig>,
         args: InitLaunchPadConfigArgs,
     ) -> Result<()> {
-        ctx.accounts.initialize(args, ctx.bumps.launch_pad_config)?;
+        init_launch_pad_config::handler(ctx, args)?;
         Ok(())
     }
 }

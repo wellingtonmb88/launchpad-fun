@@ -11,17 +11,29 @@ use crate::{
 #[derive(Default, Debug, InitSpace)]
 #[account(discriminator = DISC_LAUNCH_PAD_CONFIG_ACCOUNT)]
 pub struct LaunchPadConfig {
+    // The authority that can update the launch pad config
     pub authority: Pubkey,
+    // The rate of asset per token
     pub asset_rate: u64,
+    // The delay in seconds before a creator can sell their tokens
     pub creator_sell_delay: u64,
+    // The threshold amount for a token to graduate
     pub graduate_threshold: u64,
-    pub protocol_fee: u32,
+    // The protocol buy fee in basis points (10_000 = 1% | 100 = 0.01%) charged on trades
+    pub protocol_buy_fee: u32,
+    // The protocol sell fee in basis points (10_000 = 1% | 100 = 0.01%) charged on trades
+    pub protocol_sell_fee: u32,
+    // The current status of the protocol
     pub status: ProtocolStatus,
+    // The bump seed for the PDA
     pub bump: u8,
+    // The vault bump seed for the PDA
+    pub vault_bump: u8,
 }
 
 impl LaunchPadConfig {
     pub const SEED: &'static [u8] = b"launch_pad_config:";
+    pub const VAULT_SEED: &'static [u8] = b"vault:";
 
     pub fn initialize(
         &mut self,
@@ -29,8 +41,10 @@ impl LaunchPadConfig {
         asset_rate: u64,
         creator_sell_delay: u64,
         graduate_threshold: u64,
-        protocol_fee: u32,
+        protocol_buy_fee: u32,
+        protocol_sell_fee: u32,
         bump: u8,
+        vault_bump: u8,
     ) -> Result<()> {
         require!(
             self.status == ProtocolStatus::Unknown,
@@ -42,7 +56,7 @@ impl LaunchPadConfig {
         );
         let time = Clock::get()?.unix_timestamp + MIN_CREATOR_SELL_DELAY as i64;
         require!(
-            self.creator_sell_delay > time as u64,
+            creator_sell_delay > time as u64,
             LaunchPadErrorCode::CreatorSellDelayNotMet
         );
         require!(
@@ -54,27 +68,38 @@ impl LaunchPadConfig {
             LaunchPadErrorCode::GraduateThresholdNotMet
         );
         require!(
-            protocol_fee <= MAX_PROTOCOL_FEE,
+            protocol_buy_fee <= MAX_PROTOCOL_FEE,
             LaunchPadErrorCode::ProtocolFeeExceedsMaximum
         );
         require!(
-            protocol_fee >= MIN_PROTOCOL_FEE,
+            protocol_buy_fee >= MIN_PROTOCOL_FEE,
+            LaunchPadErrorCode::ProtocolFeeMinimumNotMet
+        );
+        require!(
+            protocol_sell_fee <= MAX_PROTOCOL_FEE,
+            LaunchPadErrorCode::ProtocolFeeExceedsMaximum
+        );
+        require!(
+            protocol_sell_fee >= MIN_PROTOCOL_FEE,
             LaunchPadErrorCode::ProtocolFeeMinimumNotMet
         );
         self.authority = authority;
         self.asset_rate = asset_rate;
         self.creator_sell_delay = creator_sell_delay;
         self.graduate_threshold = graduate_threshold;
-        self.protocol_fee = protocol_fee;
+        self.protocol_buy_fee = protocol_buy_fee;
+        self.protocol_sell_fee = protocol_sell_fee;
         self.status = ProtocolStatus::Active;
         self.bump = bump;
+        self.vault_bump = vault_bump;
 
         emit!(LaunchPadConfigInitialized {
             authority: self.authority,
             asset_rate: self.asset_rate,
             creator_sell_delay: self.creator_sell_delay,
             graduate_threshold: self.graduate_threshold,
-            protocol_fee: self.protocol_fee,
+            protocol_buy_fee: self.protocol_buy_fee,
+            protocol_sell_fee: self.protocol_sell_fee,
             status: self.status,
             timestamp: Clock::get()?.unix_timestamp,
         });
@@ -108,5 +133,23 @@ impl LaunchPadConfig {
             timestamp: Clock::get()?.unix_timestamp,
         });
         Ok(())
+    }
+
+    pub fn calculate_buy_fee(&self, amount: u64) -> Result<u64> {
+        let fee = (amount as u128)
+            .checked_mul(self.protocol_buy_fee as u128)
+            .ok_or(LaunchPadErrorCode::MathOverflow)?
+            .checked_div(1_000_000)
+            .ok_or(LaunchPadErrorCode::MathOverflow)? as u64;
+        Ok(fee)
+    }
+
+    pub fn calculate_sell_fee(&self, amount: u64) -> Result<u64> {
+        let fee = (amount as u128)
+            .checked_mul(self.protocol_sell_fee as u128)
+            .ok_or(LaunchPadErrorCode::MathOverflow)?
+            .checked_div(1_000_000)
+            .ok_or(LaunchPadErrorCode::MathOverflow)? as u64;
+        Ok(fee)
     }
 }

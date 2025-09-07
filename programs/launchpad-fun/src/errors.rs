@@ -58,4 +58,7 @@ pub enum LaunchPadErrorCode {
 
     #[msg("Invalid token URI length")]
     InvalidTokenUriLength,
+
+    #[msg("Math overflow")]
+    MathOverflow,
 }

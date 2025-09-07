@@ -1,4 +1,4 @@
-use crate::{K, TOKEN_TOTAL_SUPPLY};
+use crate::{LaunchPadErrorCode, K, TOKEN_TOTAL_SUPPLY};
 
 pub fn initial_virtual_asset_reserve(asset_rate: u64) -> u128 {
     let k = (K * 10000) / asset_rate;
@@ -12,11 +12,18 @@ pub fn calc_token_amount_out(
     current_k: u128,
     virtual_asset_reserve: u128,
     virtual_token_reserve: u128,
-) -> u64 {
+) -> Result<u64, LaunchPadErrorCode> {
     let asset_amount_in = asset_amount_in as u128;
-    let token_y_amount =
-        virtual_token_reserve - (current_k / (virtual_asset_reserve + asset_amount_in));
-    token_y_amount as u64
+    let amount = virtual_asset_reserve
+        .checked_add(asset_amount_in)
+        .ok_or(LaunchPadErrorCode::MathOverflow)?;
+    let a = current_k
+        .checked_div(amount)
+        .ok_or(LaunchPadErrorCode::MathOverflow)?;
+    let token_amount = virtual_token_reserve
+        .checked_sub(a)
+        .ok_or(LaunchPadErrorCode::MathOverflow)?;
+    Ok(token_amount as u64)
 }
 
 pub fn calc_asset_amount_out(
@@ -24,11 +31,18 @@ pub fn calc_asset_amount_out(
     current_k: u128,
     virtual_token_reserve: u128,
     virtual_asset_reserve: u128,
-) -> u64 {
+) -> Result<u64, LaunchPadErrorCode> {
     let token_amount_in = token_amount_in as u128;
-    let asset_amount_out =
-        virtual_asset_reserve - (current_k / (virtual_token_reserve + token_amount_in));
-    asset_amount_out as u64
+    let amount = virtual_token_reserve
+        .checked_add(token_amount_in)
+        .ok_or(LaunchPadErrorCode::MathOverflow)?;
+    let a = current_k
+        .checked_div(amount)
+        .ok_or(LaunchPadErrorCode::MathOverflow)?;
+    let asset_amount_out = virtual_asset_reserve
+        .checked_sub(a)
+        .ok_or(LaunchPadErrorCode::MathOverflow)?;
+    Ok(asset_amount_out as u64)
 }
 
 #[cfg(test)]
@@ -49,12 +63,12 @@ mod test {
         let current_k = current_asset_supply * TOKEN_TOTAL_SUPPLY;
         assert_eq!(current_k, 4285714285700000000000000000000000);
         let result = calc_token_amount_out(
-            990_000_000,
+            990_000_000, // 0,99
             current_k,
             current_asset_supply,
             TOKEN_TOTAL_SUPPLY,
         );
-        assert_eq!(result, 230999946640); // 230,99994664
+        assert_eq!(result.unwrap(), 230_999_946_640); // 230,99994664
     }
 
     #[test]
@@ -63,11 +77,11 @@ mod test {
         let current_k = current_asset_supply * TOKEN_TOTAL_SUPPLY;
         assert_eq!(current_k, 4285714285700000000000000000000000);
         let result = calc_asset_amount_out(
-            990_000_000,
+            230_999_946_640,
             current_k,
             TOKEN_TOTAL_SUPPLY,
             current_asset_supply,
         );
-        assert_eq!(result, 4242858); // 0,004242858
+        assert_eq!(result.unwrap(), 989_999_543); // 0,989999543
     }
 }
