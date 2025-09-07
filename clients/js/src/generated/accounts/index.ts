@@ -7,3 +7,4 @@
  */
 
 export * from './launchPadConfig';
+export * from './launchPadToken';

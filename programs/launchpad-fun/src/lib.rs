@@ -30,4 +30,12 @@ pub mod launchpad_fun {
         init_launch_pad_config::handler(ctx, args)?;
         Ok(())
     }
+
+    pub fn create_launch_pad_token(
+        ctx: Context<CreateLaunchPadToken>,
+        args: CreateLaunchPadTokenArgs,
+    ) -> Result<()> {
+        create_launch_pad_token::handler(ctx, args)?;
+        Ok(())
+    }
 }

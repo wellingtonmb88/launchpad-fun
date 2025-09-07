@@ -13,13 +13,17 @@ import {
   type Address,
   type ReadonlyUint8Array,
 } from '@solana/kit';
-import { type ParsedInitializeInstruction } from '../instructions';
+import {
+  type ParsedCreateLaunchPadTokenInstruction,
+  type ParsedInitializeInstruction,
+} from '../instructions';
 
 export const LAUNCHPAD_FUN_PROGRAM_ADDRESS =
   'HqY2bef2WwBtVSLJhii8GJ2aG3wFgDNECHYHc6Y1zHkR' as Address<'HqY2bef2WwBtVSLJhii8GJ2aG3wFgDNECHYHc6Y1zHkR'>;
 
 export enum LaunchpadFunAccount {
   LaunchPadConfig,
+  LaunchPadToken,
 }
 
 export function identifyLaunchpadFunAccount(
@@ -35,12 +39,22 @@ export function identifyLaunchpadFunAccount(
   ) {
     return LaunchpadFunAccount.LaunchPadConfig;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 1).encode(new Uint8Array([2])),
+      0
+    )
+  ) {
+    return LaunchpadFunAccount.LaunchPadToken;
+  }
   throw new Error(
     'The provided account could not be identified as a launchpadFun account.'
   );
 }
 
 export enum LaunchpadFunInstruction {
+  CreateLaunchPadToken,
   Initialize,
 }
 
@@ -48,6 +62,17 @@ export function identifyLaunchpadFunInstruction(
   instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): LaunchpadFunInstruction {
   const data = 'data' in instruction ? instruction.data : instruction;
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([79, 101, 154, 215, 208, 226, 116, 159])
+      ),
+      0
+    )
+  ) {
+    return LaunchpadFunInstruction.CreateLaunchPadToken;
+  }
   if (
     containsBytes(
       data,
@@ -66,6 +91,10 @@ export function identifyLaunchpadFunInstruction(
 
 export type ParsedLaunchpadFunInstruction<
   TProgram extends string = 'HqY2bef2WwBtVSLJhii8GJ2aG3wFgDNECHYHc6Y1zHkR',
-> = {
-  instructionType: LaunchpadFunInstruction.Initialize;
-} & ParsedInitializeInstruction<TProgram>;
+> =
+  | ({
+      instructionType: LaunchpadFunInstruction.CreateLaunchPadToken;
+    } & ParsedCreateLaunchPadTokenInstruction<TProgram>)
+  | ({
+      instructionType: LaunchpadFunInstruction.Initialize;
+    } & ParsedInitializeInstruction<TProgram>);

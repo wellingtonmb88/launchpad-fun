@@ -19,9 +19,10 @@ use spl_token_metadata_interface::state::TokenMetadata;
 use spl_type_length_value::variable_len_pack::VariableLenPack;
 
 use crate::{
-    LaunchPadConfig, LaunchPadErrorCode, LaunchPadToken, ProtocolStatus, MAX_TOKEN_NAME_LENGTH,
-    MAX_TOKEN_SYMBOL_LENGTH, MAX_TOKEN_URI_LENGTH, MIN_TOKEN_NAME_LENGTH, MIN_TOKEN_SYMBOL_LENGTH,
-    MIN_TOKEN_URI_LENGTH, TOKEN_GRADUATION_AMOUNT, TOKEN_TOTAL_SUPPLY,
+    initial_virtual_asset_reserve, LaunchPadConfig, LaunchPadErrorCode, LaunchPadToken,
+    ProtocolStatus, MAX_TOKEN_NAME_LENGTH, MAX_TOKEN_SYMBOL_LENGTH, MAX_TOKEN_URI_LENGTH,
+    MIN_TOKEN_NAME_LENGTH, MIN_TOKEN_SYMBOL_LENGTH, MIN_TOKEN_URI_LENGTH, TOKEN_GRADUATION_AMOUNT,
+    TOKEN_TOTAL_SUPPLY,
 };
 
 #[derive(AnchorDeserialize, AnchorSerialize)]
@@ -45,21 +46,21 @@ pub struct CreateLaunchPadToken<'info> {
     #[account(
         init,
         payer = creator,
-        space = LaunchPadToken::DISCRIMINATOR.len() + LaunchPadToken::INIT_SPACE,
-        seeds = [LaunchPadToken::SEED, mint.key().as_ref()],
-        bump
-    )]
-    pub launch_pad_token: Account<'info, LaunchPadToken>,
-
-    #[account(
-        init,
-        payer = creator,
         mint::decimals = 9,
         mint::authority = launch_pad_config,
         extensions::metadata_pointer::authority = launch_pad_config,
         extensions::metadata_pointer::metadata_address = mint,
     )]
     pub mint: InterfaceAccount<'info, Mint>,
+
+    #[account(
+        init,
+        payer = creator,
+        space = LaunchPadToken::DISCRIMINATOR.len() + LaunchPadToken::INIT_SPACE,
+        seeds = [LaunchPadToken::SEED, mint.key().as_ref()],
+        bump
+    )]
+    pub launch_pad_token: Account<'info, LaunchPadToken>,
 
     #[account(
         init,
@@ -71,13 +72,11 @@ pub struct CreateLaunchPadToken<'info> {
     pub launch_pad_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
-        init,
-        payer = creator,
-        associated_token::mint = mint,
-        associated_token::authority = launch_pad_config,
-        associated_token::token_program = token_program,
+        mut,
+        seeds = [LaunchPadToken::VAULT_SEED, mint.key().as_ref()],
+        bump,
     )]
-    pub launch_pad_token_reserve_account: InterfaceAccount<'info, TokenAccount>,
+    pub vault_graduation: SystemAccount<'info>,
 
     pub token_program: Program<'info, Token2022>,
     pub system_program: Program<'info, System>,
@@ -111,16 +110,17 @@ impl<'info> CreateLaunchPadToken<'info> {
         self.init_mint_account(&args)?;
         self.init_token_metadata(&args, launch_pad_config_bump)?;
         self.mint_tokens(launch_pad_config_bump)?;
-        self.reserve_tokens_for_graduation(launch_pad_config_bump)?;
+        self.init_vault_account()?;
 
-        // TODO: decide initial liquidity amounts
-        // For now, set both to 0 
+        let initial_asset_reserve =
+            initial_virtual_asset_reserve(self.launch_pad_config.asset_rate);
         self.launch_pad_token.create(
             self.creator.key(),
             self.mint.key(),
-            0, // initial token amount
-            0, // initial asset amount
+            TOKEN_TOTAL_SUPPLY as u64,
+            initial_asset_reserve as u64,
             bumps.launch_pad_token,
+            bumps.vault_graduation,
         )?;
 
         Ok(())
@@ -221,23 +221,17 @@ impl<'info> CreateLaunchPadToken<'info> {
         Ok(())
     }
 
-    fn reserve_tokens_for_graduation(&self, launch_pad_config_bump: u8) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[LaunchPadConfig::SEED, &[launch_pad_config_bump]]];
+    fn init_vault_account(&self) -> Result<()> {
+        let rent_exempt =
+            Rent::get()?.minimum_balance(self.vault_graduation.to_account_info().data_len());
 
-        token_2022::transfer_checked(
-            CpiContext::new_with_signer(
-                self.token_program.to_account_info(),
-                token_2022::TransferChecked {
-                    from: self.launch_pad_token_account.to_account_info(),
-                    to: self.launch_pad_token_reserve_account.to_account_info(),
-                    authority: self.launch_pad_config.to_account_info(),
-                    mint: self.mint.to_account_info(),
-                },
-                signer,
-            ),
-            TOKEN_GRADUATION_AMOUNT as u64,
-            9,
-        )?;
+        let cpi_accounts = Transfer {
+            from: self.creator.to_account_info(),
+            to: self.vault_graduation.to_account_info(),
+        };
+        let cpi_program = self.system_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        transfer(cpi_ctx, rent_exempt)?;
         Ok(())
     }
 }
