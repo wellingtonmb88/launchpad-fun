@@ -150,6 +150,11 @@
   resolved "https://registry.yarnpkg.com/@solana-program/compute-budget/-/compute-budget-0.9.0.tgz#4afd35525f9f6ed9692438548863b736dad8337e"
   integrity sha512-on7Cs1V48X9E2x1yVmfM6N6Xv0r4oGruXPcWnI50D3D3CIsHNWJ4gsvL4qZ4iey7zAP73FdM21K2CZBi1a/jzg==
 
+"@solana-program/token@^0.6.0":
+  version "0.6.0"
+  resolved "https://registry.yarnpkg.com/@solana-program/token/-/token-0.6.0.tgz#474f7a657991ced5016d1e1d58789c9d5ea41176"
+  integrity sha512-omkZh4Tt9rre4wzWHNOhOEHyenXQku3xyc/UrKvShexA/Qlhza67q7uRwmwEDUs4QqoDBidSZPooOmepnA/jig==
+
 "@solana/accounts@3.0.2":
   version "3.0.2"
   resolved "https://registry.yarnpkg.com/@solana/accounts/-/accounts-3.0.2.tgz#1d4a5117e0d34208910920b25c61f47b6bb0891d"

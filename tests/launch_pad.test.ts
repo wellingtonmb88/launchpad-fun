@@ -19,15 +19,10 @@ import {
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
-  KeyPairSigner,
   appendTransactionMessageInstructions,
   Address,
   SOLANA_ERROR__JSON_RPC__SERVER_ERROR_SEND_TRANSACTION_PREFLIGHT_FAILURE,
   isSolanaError,
-  SolanaError,
-  SolanaErrorCode,
-  getBase58Decoder,
-  getBase58Codec,
   getBase58Encoder,
 } from "@solana/kit";
 import { expect } from "chai";
@@ -37,6 +32,13 @@ import {
   CreateLaunchPadTokenInstructionDataArgs,
   InitializeInstructionDataArgs,
 } from "../clients/js/src/generated";
+import {
+  getAccount,
+  getAssociatedTokenAddressSync,
+  TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import { findAssociatedTokenPda } from "@solana-program/token";
 
 type TestEnvironment = {
   rpcClient: RpcClient;
@@ -57,12 +59,15 @@ const createTestEnvironment = async (): Promise<TestEnvironment> => {
 type RpcClient = {
   rpc: Rpc<SolanaRpcApi>;
   rpcSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi>;
+  connection: anchor.web3.Connection;
 };
 
 const createDefaultSolanaClient = (): RpcClient => {
-  const rpc = createSolanaRpc("http://127.0.0.1:8899");
+  const endpoint = "http://127.0.0.1:8899";
+  const rpc = createSolanaRpc(endpoint);
+  const connection = new anchor.web3.Connection(endpoint);
   const rpcSubscriptions = createSolanaRpcSubscriptions("ws://127.0.0.1:8900");
-  return { rpc, rpcSubscriptions };
+  return { rpc, rpcSubscriptions, connection };
 };
 
 const generateKeyPairSignerWithSol = async (
@@ -237,17 +242,6 @@ describe("init_launch_pad_config", () => {
       program.LAUNCHPAD_FUN_PROGRAM_ADDRESS
     );
 
-    // derive PDAs
-    const [launchPadConfigPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("launch_pad_config:")],
-      programId
-    );
-
-    const [vaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("vault:")],
-      programId
-    );
-
     const codec = getBase58Encoder();
     const mintAddressBytes = codec.encode(mint.address.toString());
 
@@ -262,6 +256,24 @@ describe("init_launch_pad_config", () => {
         [Buffer.from("vault_graduation:"), Buffer.from(mintAddressBytes)],
         programId
       );
+
+    const [launchPadConfigPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("launch_pad_config:")],
+      programId
+    );
+
+    const [launchPadTokenAccountPda] = await findAssociatedTokenPda({
+      /** The wallet address of the associated token account. */
+      owner: launchPadConfigPda.toBase58() as Address,
+      /** The address of the token program to use. */
+      tokenProgram: TOKEN_2022_PROGRAM_ID.toBase58() as Address,
+      /** The mint address of the associated token account. */
+      mint: mint.address,
+    });
+    console.log(
+      "launchPadTokenAccountPda",
+      launchPadTokenAccountPda.toString()
+    );
 
     // prepare args
     const args = {
@@ -328,5 +340,12 @@ describe("init_launch_pad_config", () => {
     expect(graduationVault).to.not.be.null;
     // has some lamports deposited (rent exempt at least)
     expect(BigInt(graduationVault.value.lamports.toString())).to.equal(890880n);
+
+    const launchPadTokenAccount = await rpcClient.rpc.getTokenAccountBalance(
+      launchPadTokenAccountPda.toString() as Address
+    ).send();
+
+    expect(launchPadTokenAccount).to.not.be.null;
+    expect(launchPadTokenAccount.value.amount).to.equal('1000000000000000000');
   });
 });
