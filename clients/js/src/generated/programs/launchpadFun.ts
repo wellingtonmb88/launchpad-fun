@@ -17,6 +17,7 @@ import {
   type ParsedBuyTokenInstruction,
   type ParsedCreateTokenInstruction,
   type ParsedInitializeInstruction,
+  type ParsedSellTokenInstruction,
 } from '../instructions';
 
 export const LAUNCHPAD_FUN_PROGRAM_ADDRESS =
@@ -58,6 +59,7 @@ export enum LaunchpadFunInstruction {
   BuyToken,
   CreateToken,
   Initialize,
+  SellToken,
 }
 
 export function identifyLaunchpadFunInstruction(
@@ -97,6 +99,17 @@ export function identifyLaunchpadFunInstruction(
   ) {
     return LaunchpadFunInstruction.Initialize;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([109, 61, 40, 187, 230, 176, 135, 174])
+      ),
+      0
+    )
+  ) {
+    return LaunchpadFunInstruction.SellToken;
+  }
   throw new Error(
     'The provided instruction could not be identified as a launchpadFun instruction.'
   );
@@ -113,4 +126,7 @@ export type ParsedLaunchpadFunInstruction<
     } & ParsedCreateTokenInstruction<TProgram>)
   | ({
       instructionType: LaunchpadFunInstruction.Initialize;
-    } & ParsedInitializeInstruction<TProgram>);
+    } & ParsedInitializeInstruction<TProgram>)
+  | ({
+      instructionType: LaunchpadFunInstruction.SellToken;
+    } & ParsedSellTokenInstruction<TProgram>);

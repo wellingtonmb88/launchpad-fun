@@ -40,4 +40,9 @@ pub mod launchpad_fun {
         buy_token::handler(ctx, args)?;
         Ok(())
     }
+
+    pub fn sell_token(ctx: Context<SellToken>, args: SellTokenArgs) -> Result<()> {
+        sell_token::handler(ctx, args)?;
+        Ok(())
+    }
 }

@@ -19,19 +19,19 @@ use spl_token_metadata_interface::state::TokenMetadata;
 use spl_type_length_value::variable_len_pack::VariableLenPack;
 
 use crate::{
-    calc_token_amount_out, initial_virtual_asset_reserve, LaunchPadConfig, LaunchPadErrorCode,
-    LaunchPadToken, LaunchPadTokenStatus, ProtocolStatus, MAX_TOKEN_NAME_LENGTH,
-    MAX_TOKEN_SYMBOL_LENGTH, MAX_TOKEN_URI_LENGTH, MIN_TOKEN_NAME_LENGTH, MIN_TOKEN_SYMBOL_LENGTH,
-    MIN_TOKEN_URI_LENGTH, TOKEN_GRADUATION_AMOUNT, TOKEN_TOTAL_SUPPLY,
+    calc_asset_amount_out, calc_token_amount_out, initial_virtual_asset_reserve, LaunchPadConfig,
+    LaunchPadErrorCode, LaunchPadToken, LaunchPadTokenStatus, ProtocolStatus,
+    MAX_TOKEN_NAME_LENGTH, MAX_TOKEN_SYMBOL_LENGTH, MAX_TOKEN_URI_LENGTH, MIN_TOKEN_NAME_LENGTH,
+    MIN_TOKEN_SYMBOL_LENGTH, MIN_TOKEN_URI_LENGTH, TOKEN_GRADUATION_AMOUNT, TOKEN_TOTAL_SUPPLY,
 };
 
 #[derive(AnchorDeserialize, AnchorSerialize)]
-pub struct BuyTokenArgs {
+pub struct SellTokenArgs {
     pub amount: u64,
 }
 
 #[derive(Accounts)]
-pub struct BuyToken<'info> {
+pub struct SellToken<'info> {
     #[account(mut)]
     pub investor: Signer<'info>,
 
@@ -87,8 +87,8 @@ pub struct BuyToken<'info> {
     pub system_program: Program<'info, System>,
 }
 
-impl<'info> BuyToken<'info> {
-    pub fn buy_token(&mut self, args: BuyTokenArgs, bumps: BuyTokenBumps) -> Result<()> {
+impl<'info> SellToken<'info> {
+    pub fn sell_token(&mut self, args: SellTokenArgs) -> Result<()> {
         require!(
             self.launch_pad_config.status == ProtocolStatus::Active,
             LaunchPadErrorCode::ProtocolConfigNotActive
@@ -98,71 +98,66 @@ impl<'info> BuyToken<'info> {
             LaunchPadErrorCode::LaunchPadTokenTradingNotEnabled
         );
 
-        let BuyTokenArgs { amount } = args;
-        let launch_pad_config_bump = bumps.launch_pad_config;
+        let SellTokenArgs {
+            amount: token_amount_in,
+        } = args;
+        let launch_pad_vault_bump = self.launch_pad_token.vault_bump;
         let current_asset_supply = self.launch_pad_token.virtual_asset_amount;
         let current_token_supply = self.launch_pad_token.virtual_token_amount;
         let current_k = self.launch_pad_token.current_k;
 
-        let buy_fee = self.launch_pad_config.calculate_buy_fee(amount)?;
-        let amount = amount
-            .checked_sub(buy_fee)
-            .ok_or(LaunchPadErrorCode::MathOverflow)?;
-
-        let token_amount_out = calc_token_amount_out(
-            amount,
+        let asset_amount_out = calc_asset_amount_out(
+            token_amount_in,
             current_k,
-            current_asset_supply as u128,
             current_token_supply as u128,
+            current_asset_supply as u128,
         )? as u64;
 
-        let total_supply_minus_graduation = current_token_supply
-            .checked_sub(TOKEN_GRADUATION_AMOUNT as u64)
+        let sell_fee = self
+            .launch_pad_config
+            .calculate_sell_fee(asset_amount_out)?;
+        let asset_amount_out_with_fee = asset_amount_out
+            .checked_sub(sell_fee)
             .ok_or(LaunchPadErrorCode::MathOverflow)?;
 
         require!(
-            token_amount_out <= total_supply_minus_graduation,
-            LaunchPadErrorCode::InsufficientTokenLiquidity
+            asset_amount_out <= current_asset_supply,
+            LaunchPadErrorCode::InsufficientAssetLiquidity
         );
 
-        self.transfer_tokens_to_investor(token_amount_out, launch_pad_config_bump)?;
-        self.transfer_assets_from_investor_to(amount, &self.vault_graduation.to_account_info())?;
-        self.transfer_assets_from_investor_to(buy_fee, &self.vault.to_account_info())?;
+        self.transfer_tokens_from_investor(token_amount_in)?;
+        self.transfer_assets_to_investor(asset_amount_out_with_fee, launch_pad_vault_bump)?;
+        self.transfer_sell_fee(sell_fee, launch_pad_vault_bump)?;
 
         self.launch_pad_token.update_virtual_reserves(
             current_token_supply
-                .checked_sub(token_amount_out)
+                .checked_add(token_amount_in)
                 .ok_or(LaunchPadErrorCode::MathOverflow)?,
             current_asset_supply
-                .checked_add(amount)
+                .checked_sub(asset_amount_out)
                 .ok_or(LaunchPadErrorCode::MathOverflow)?,
         )?;
 
         self.launch_pad_token
-            .increase_virtual_graduation_amount(amount)?;
-
-        if self.launch_pad_token.virtual_graduation_amount
-            >= self.launch_pad_config.graduate_threshold
-        {
-            self.launch_pad_token
-                .update_status(LaunchPadTokenStatus::ReadyToGraduate)?;
-        }
+            .decrease_virtual_graduation_amount(asset_amount_out)?;
 
         Ok(())
     }
 
-    fn transfer_assets_from_investor_to(
-        &self,
-        amount: u64,
-        destination: &AccountInfo<'info>,
-    ) -> Result<()> {
+    fn transfer_assets_to_investor(&self, amount: u64, launch_pad_vault_bump: u8) -> Result<()> {
+        let signer: &[&[&[u8]]] = &[&[
+            LaunchPadToken::VAULT_SEED,
+            self.mint.to_account_info().key.as_ref(),
+            &[launch_pad_vault_bump],
+        ]];
         transfer(
-            CpiContext::new(
+            CpiContext::new_with_signer(
                 self.system_program.to_account_info(),
                 Transfer {
-                    from: self.investor.to_account_info(),
-                    to: destination.clone(),
+                    from: self.vault_graduation.to_account_info(),
+                    to: self.investor.to_account_info(),
                 },
+                signer,
             ),
             amount,
         )?;
@@ -170,29 +165,47 @@ impl<'info> BuyToken<'info> {
         Ok(())
     }
 
-    fn transfer_tokens_to_investor(&self, amount: u64, launch_pad_config_bump: u8) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[LaunchPadConfig::SEED, &[launch_pad_config_bump]]];
-
+    fn transfer_tokens_from_investor(&self, amount: u64) -> Result<()> {
         token_2022::transfer_checked(
-            CpiContext::new_with_signer(
+            CpiContext::new(
                 self.token_program.to_account_info(),
                 token_2022::TransferChecked {
-                    from: self.launch_pad_token_account.to_account_info(),
-                    to: self.investor_token_account.to_account_info(),
-                    authority: self.launch_pad_config.to_account_info(),
+                    from: self.investor_token_account.to_account_info(),
+                    to: self.launch_pad_token_account.to_account_info(),
+                    authority: self.investor.to_account_info(),
                     mint: self.mint.to_account_info(),
                 },
-                signer,
             ),
             amount,
             9,
         )?;
         Ok(())
     }
+
+    fn transfer_sell_fee(&self, amount: u64, launch_pad_vault_bump: u8) -> Result<()> {
+        let signer: &[&[&[u8]]] = &[&[
+            LaunchPadToken::VAULT_SEED,
+            self.mint.to_account_info().key.as_ref(),
+            &[launch_pad_vault_bump],
+        ]];
+        transfer(
+            CpiContext::new_with_signer(
+                self.system_program.to_account_info(),
+                Transfer {
+                    from: self.vault_graduation.to_account_info(),
+                    to: self.vault.to_account_info(),
+                },
+                signer,
+            ),
+            amount,
+        )?;
+
+        Ok(())
+    }
 }
 
-pub fn handler(ctx: Context<BuyToken>, args: BuyTokenArgs) -> Result<()> {
-    ctx.accounts.buy_token(args, ctx.bumps)?;
-    msg!("Launch Pad token bought successfully");
+pub fn handler(ctx: Context<SellToken>, args: SellTokenArgs) -> Result<()> {
+    ctx.accounts.sell_token(args)?;
+    msg!("Launch Pad token sold successfully");
     Ok(())
 }

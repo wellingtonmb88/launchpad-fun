@@ -58,11 +58,14 @@ export const LAUNCHPAD_FUN_ERROR__INVALID_TOKEN_URI_LENGTH = 0x1783; // 6019
 export const LAUNCHPAD_FUN_ERROR__MATH_OVERFLOW = 0x1784; // 6020
 /** InsufficientTokenLiquidity: Insufficient token liquidity */
 export const LAUNCHPAD_FUN_ERROR__INSUFFICIENT_TOKEN_LIQUIDITY = 0x1785; // 6021
+/** InsufficientAssetLiquidity: Insufficient asset liquidity */
+export const LAUNCHPAD_FUN_ERROR__INSUFFICIENT_ASSET_LIQUIDITY = 0x1786; // 6022
 
 export type LaunchpadFunError =
   | typeof LAUNCHPAD_FUN_ERROR__ASSET_RATE_MUST_BE_GREATER_THAN_ZERO
   | typeof LAUNCHPAD_FUN_ERROR__CREATOR_SELL_DELAY_NOT_MET
   | typeof LAUNCHPAD_FUN_ERROR__GRADUATE_THRESHOLD_NOT_MET
+  | typeof LAUNCHPAD_FUN_ERROR__INSUFFICIENT_ASSET_LIQUIDITY
   | typeof LAUNCHPAD_FUN_ERROR__INSUFFICIENT_TOKEN_LIQUIDITY
   | typeof LAUNCHPAD_FUN_ERROR__INVALID_AUTHORITY
   | typeof LAUNCHPAD_FUN_ERROR__INVALID_CREATOR
@@ -89,6 +92,7 @@ if (process.env.NODE_ENV !== 'production') {
     [LAUNCHPAD_FUN_ERROR__ASSET_RATE_MUST_BE_GREATER_THAN_ZERO]: `Asset rate must be greater than zero`,
     [LAUNCHPAD_FUN_ERROR__CREATOR_SELL_DELAY_NOT_MET]: `Creator sell delay not met`,
     [LAUNCHPAD_FUN_ERROR__GRADUATE_THRESHOLD_NOT_MET]: `Graduate threshold not met`,
+    [LAUNCHPAD_FUN_ERROR__INSUFFICIENT_ASSET_LIQUIDITY]: `Insufficient asset liquidity`,
     [LAUNCHPAD_FUN_ERROR__INSUFFICIENT_TOKEN_LIQUIDITY]: `Insufficient token liquidity`,
     [LAUNCHPAD_FUN_ERROR__INVALID_AUTHORITY]: `Invalid authority`,
     [LAUNCHPAD_FUN_ERROR__INVALID_CREATOR]: `Invalid creator`,

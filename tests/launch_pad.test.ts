@@ -32,6 +32,7 @@ import {
   BuyTokenInstructionDataArgs,
   CreateTokenInstructionDataArgs,
   InitializeInstructionDataArgs,
+  SellTokenInstructionDataArgs,
 } from "../clients/js/src/generated";
 import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { findAssociatedTokenPda } from "@solana-program/token";
@@ -170,7 +171,7 @@ describe("Launch Pad Fun", () => {
     // prepare args
     const args = {
       assetRate: 300000n,
-      creatorSellDelay: BigInt(Math.floor(Date.now() / 1000) + 60 * 60 * 1), // 1 hour in future
+      creatorSellDelay: BigInt(60 * 60 * 1), // 1 hour
       graduateThreshold: 450_000_000_000n, // 450 SOLs
       protocolBuyFee: 5000, // basis points
       protocolSellFee: 7000,
@@ -479,5 +480,144 @@ describe("Launch Pad Fun", () => {
 
     expect(investorTokenAccount).to.not.be.null;
     expect(investorTokenAccount.value.amount).to.equal("9851972869944057"); //9.851.972,869944057
+  });
+
+  it("sells a token", async () => {
+    const { rpcClient, programClient: program, creator, mint } = testEnv;
+    const programId = new anchor.web3.PublicKey(
+      program.LAUNCHPAD_FUN_PROGRAM_ADDRESS
+    );
+
+    const codec = getBase58Encoder();
+    const mintAddressBytes = codec.encode(mint.address.toString());
+
+    const [launchPadTokenPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("launch_pad_token:"), Buffer.from(mintAddressBytes)],
+      programId
+    );
+
+    const [graduationVaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault_graduation:"), Buffer.from(mintAddressBytes)],
+      programId
+    );
+
+    const [vaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault:")],
+      programId
+    );
+
+    const [launchPadConfigPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("launch_pad_config:")],
+      programId
+    );
+
+    const [launchPadTokenAccountPda] = await findAssociatedTokenPda({
+      /** The wallet address of the associated token account. */
+      owner: launchPadConfigPda.toBase58() as Address,
+      /** The address of the token program to use. */
+      tokenProgram: TOKEN_2022_PROGRAM_ID.toBase58() as Address,
+      /** The mint address of the associated token account. */
+      mint: mint.address,
+    });
+
+    const [investorTokenAccountPda] = await findAssociatedTokenPda({
+      /** The wallet address of the associated token account. */
+      owner: creator.address,
+      /** The address of the token program to use. */
+      tokenProgram: TOKEN_2022_PROGRAM_ID.toBase58() as Address,
+      /** The mint address of the associated token account. */
+      mint: mint.address,
+    });
+
+    // prepare args
+    const args = {
+      amount: 9_000_000_869_944_000n,
+    } as SellTokenInstructionDataArgs;
+
+    const ix = await program.getSellTokenInstructionAsync({
+      investor: creator,
+      mint: mint.address,
+      ...args,
+    });
+
+    const instructions = [
+      getSetComputeUnitLimitInstruction({ units: 200_000 }), // <- Here we add the CU limit instruction.
+      ix,
+    ];
+    try {
+      const txSignature = await pipe(
+        await createDefaultTransaction(testEnv),
+        (tx) => appendTransactionMessageInstructions(instructions, tx),
+        (tx) => signAndSendTransaction(testEnv.rpcClient, tx, "confirmed")
+      );
+      console.log("tx", txSignature.toString());
+    } catch (e) {
+      console.error("error", e);
+      if (
+        testEnv.programClient.isLaunchpadFunError(e, {
+          instructions,
+        })
+      ) {
+        console.error(
+          "Program error:",
+          e,
+          testEnv.programClient.getLaunchpadFunErrorMessage(e.context.code)
+        );
+        throw e;
+      } else {
+        displaySolanaError(e);
+      }
+    }
+
+    let token = await testEnv.programClient.fetchLaunchPadToken(
+      testEnv.rpcClient.rpc,
+      launchPadTokenPda.toString() as Address,
+      { commitment: "confirmed" }
+    );
+
+    expect(token.data.creator.toString()).to.equal(creator.address.toString());
+    expect(token.data.mint.toString()).to.equal(mint.address.toString());
+    expect(token.data.virtualAssetAmount).to.equal(100085269847n);
+    expect(token.data.virtualTokenAmount).to.equal(999148027999999943n);
+    expect(token.data.currentK).to.equal(100000000000000000000000000000n);
+    expect(token.data.virtualGraduationAmount).to.equal(85269847n);
+    expect(token.data.status).to.equal(1); // LaunchPadTokenStatus::TradingEnabled (enum idx)
+
+    const graduationVault = await rpcClient.rpc
+      .getAccountInfo(graduationVaultPda.toString() as Address)
+      .send();
+
+    expect(graduationVault).to.not.be.null;
+
+    expect(BigInt(graduationVault.value.lamports.toString())).to.equal(
+      86_160_727n
+    );
+
+    const launchPadTokenAccount = await rpcClient.rpc
+      .getTokenAccountBalance(launchPadTokenAccountPda.toString() as Address)
+      .send();
+
+    expect(launchPadTokenAccount).to.not.be.null;
+    expect(launchPadTokenAccount.value.amount).to.equal("999148027999999943");
+
+    // verify vault exists and has rent-exempt lamports
+    const vault = await rpcClient.rpc
+      .getAccountInfo(vaultPda.toString() as Address)
+      .send();
+
+    expect(vault).to.not.be.null;
+    expect(BigInt(vault.value.lamports.toString())).to.equal(12_258_991n);
+
+    const investorTokenAccount = await rpcClient.rpc
+      .getTokenAccountBalance(investorTokenAccountPda.toString() as Address)
+      .send();
+
+    expect(investorTokenAccount).to.not.be.null;
+    expect(investorTokenAccount.value.amount).to.equal("851972000000057"); //851.972,000000057
+
+    const investor = await rpcClient.rpc.getAccountInfo(creator.address).send();
+
+    expect(investor).to.not.be.null;
+    expect(BigInt(investor.value.lamports.toString())).to.equal(9_893_151_722n);
   });
 });

@@ -67,4 +67,7 @@ pub enum LaunchPadErrorCode {
 
     #[msg("Insufficient token liquidity")]
     InsufficientTokenLiquidity,
+
+    #[msg("Insufficient asset liquidity")]
+    InsufficientAssetLiquidity,
 }

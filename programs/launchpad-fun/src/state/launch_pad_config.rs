@@ -54,9 +54,8 @@ impl LaunchPadConfig {
             authority != Pubkey::default(),
             LaunchPadErrorCode::InvalidAuthority
         );
-        let time = Clock::get()?.unix_timestamp + MIN_CREATOR_SELL_DELAY as i64;
         require!(
-            creator_sell_delay > time as u64,
+            creator_sell_delay >= MIN_CREATOR_SELL_DELAY,
             LaunchPadErrorCode::CreatorSellDelayNotMet
         );
         require!(
