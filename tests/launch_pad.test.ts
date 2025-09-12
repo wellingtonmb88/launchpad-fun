@@ -24,6 +24,7 @@ import {
   SOLANA_ERROR__JSON_RPC__SERVER_ERROR_SEND_TRANSACTION_PREFLIGHT_FAILURE,
   isSolanaError,
   getBase58Encoder,
+  getBase64EncodedWireTransaction,
 } from "@solana/kit";
 import { expect } from "chai";
 import * as programClient from "../clients/js/src/generated";
@@ -34,7 +35,12 @@ import {
   InitializeInstructionDataArgs,
   SellTokenInstructionDataArgs,
 } from "../clients/js/src/generated";
-import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
+import {
+  TOKEN_2022_PROGRAM_ID,
+  NATIVE_MINT,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import { findAssociatedTokenPda } from "@solana-program/token";
 
 type TestEnvironment = {
@@ -55,7 +61,20 @@ const createTestEnvironment = async (): Promise<TestEnvironment> => {
     rpcClient,
     10_000_000_000n
   );
-  const mint = await generateKeyPairSigner();
+  let mint = await generateKeyPairSigner();
+  // while (true) {
+  //   const tokenArray = [NATIVE_MINT, new anchor.web3.PublicKey(mint.address)];
+  //   if (tokenArray[0].toBuffer() > tokenArray[1].toBuffer()) {
+  //     console.log(
+  //       `Regenerating mint keypair to avoid token sort order issues: ${new anchor.web3.PublicKey(
+  //         mint.address
+  //       ).toBase58()} < ${NATIVE_MINT.toBase58()}`
+  //     );
+  //     break;
+  //   }
+  //   mint = await generateKeyPairSigner();
+  // }
+
   return { rpcClient, authority, creator, mint, programClient };
 };
 
@@ -104,15 +123,78 @@ const signAndSendTransaction = async (
   commitment: Commitment = "confirmed",
   skipPreflight: boolean = true
 ) => {
-  const signedTransaction = await signTransactionMessageWithSigners(
-    transactionMessage
-  );
-  const signature = getSignatureFromTransaction(signedTransaction);
-  await sendAndConfirmTransactionFactory(rpcClient)(signedTransaction as any, {
-    skipPreflight,
-    commitment,
-  });
-  return signature;
+  try {
+    const signedTransaction = await signTransactionMessageWithSigners(
+      transactionMessage
+    );
+    const signature = getSignatureFromTransaction(signedTransaction);
+    await sendAndConfirmTransactionFactory(rpcClient)(
+      signedTransaction as any,
+      {
+        skipPreflight,
+        commitment,
+      }
+    );
+    return signature;
+  } catch (e: any) {
+    console.error("sendAndConfirmTransaction failed:", e?.message ?? e);
+
+    // Try to extract signature from known error shapes
+    const maybeSig =
+      e?.signature ||
+      e?.cause?.signature ||
+      (e?.context && e?.context?.signature);
+
+    // Try fetching transaction details (on-chain) to get logs
+    if (maybeSig) {
+      try {
+        const txRes = await rpcClient.rpc
+          .getTransaction(maybeSig, {
+            commitment: "confirmed",
+            encoding: "base58",
+          })
+          .send();
+        const logs = txRes?.meta?.logMessages;
+        if (logs && logs.length) {
+          console.error("On-chain logs:");
+          logs.forEach((l: string) => console.error(l));
+        } else {
+          console.error("getTransaction returned no logs", txRes?.meta);
+        }
+      } catch (getTxErr) {
+        console.error(
+          "Error fetching transaction via getTransaction:",
+          getTxErr
+        );
+      }
+    }
+
+    // If we don't have a signature, try simulating the signed transaction to get logs
+    try {
+      const signed = await signTransactionMessageWithSigners(
+        transactionMessage
+      );
+
+      const base64EncodedTransaction = getBase64EncodedWireTransaction(signed);
+
+      // serialize to base64
+      // const raw = (signed as any).serialize().toString("base64");
+      const sim = await rpcClient.rpc
+        .simulateTransaction(base64EncodedTransaction, { encoding: "base64" })
+        .send();
+      if (sim?.value?.logs && sim.value.logs.length) {
+        console.error("Simulated logs:");
+        sim.value.logs.forEach((l: string) => console.error(l));
+      } else {
+        console.error("Simulation returned no logs:", sim?.value);
+      }
+    } catch (simErr) {
+      console.error("Simulation attempt failed:", simErr);
+    }
+
+    // rethrow so tests still see the failure
+    throw e;
+  }
 };
 
 const displaySolanaError = (e: any) => {
@@ -172,7 +254,7 @@ describe("Launch Pad Fun", () => {
     const args = {
       assetRate: 300000n,
       creatorSellDelay: BigInt(60 * 60 * 1), // 1 hour
-      graduateThreshold: 450_000_000_000n, // 450 SOLs
+      graduateThreshold: 85_000_000_000n, // 100 SOLs
       protocolBuyFee: 5000, // basis points
       protocolSellFee: 7000,
     } as InitializeInstructionDataArgs;
@@ -187,28 +269,13 @@ describe("Launch Pad Fun", () => {
       getSetComputeUnitLimitInstruction({ units: 200_000 }), // <- Here we add the CU limit instruction.
       ix,
     ];
-    try {
-      const txSignature = await pipe(
-        await createDefaultTransaction(testEnv),
-        (tx) => appendTransactionMessageInstructions(instructions, tx),
-        (tx) => signAndSendTransaction(testEnv.rpcClient, tx)
-      );
-      console.log("tx", txSignature.toString());
-    } catch (e) {
-      if (
-        testEnv.programClient.isLaunchpadFunError(e, {
-          instructions,
-        })
-      ) {
-        console.error(
-          "Program error:",
-          e,
-          testEnv.programClient.getLaunchpadFunErrorMessage(e.context.code)
-        );
-      } else {
-        displaySolanaError(e);
-      }
-    }
+
+    const txSignature = await pipe(
+      await createDefaultTransaction(testEnv),
+      (tx) => appendTransactionMessageInstructions(instructions, tx),
+      (tx) => signAndSendTransaction(testEnv.rpcClient, tx, "confirmed", false)
+    );
+    console.log("tx", txSignature.toString());
 
     let cfg = await testEnv.programClient.fetchLaunchPadConfig(
       testEnv.rpcClient.rpc,
@@ -292,28 +359,13 @@ describe("Launch Pad Fun", () => {
       getSetComputeUnitLimitInstruction({ units: 200_000 }), // <- Here we add the CU limit instruction.
       ix,
     ];
-    try {
-      const txSignature = await pipe(
-        await createDefaultTransaction(testEnv),
-        (tx) => appendTransactionMessageInstructions(instructions, tx),
-        (tx) => signAndSendTransaction(testEnv.rpcClient, tx, "confirmed")
-      );
-      console.log("tx", txSignature.toString());
-    } catch (e) {
-      if (
-        testEnv.programClient.isLaunchpadFunError(e, {
-          instructions,
-        })
-      ) {
-        console.error(
-          "Program error:",
-          e,
-          testEnv.programClient.getLaunchpadFunErrorMessage(e.context.code)
-        );
-      } else {
-        displaySolanaError(e);
-      }
-    }
+
+    const txSignature = await pipe(
+      await createDefaultTransaction(testEnv),
+      (tx) => appendTransactionMessageInstructions(instructions, tx),
+      (tx) => signAndSendTransaction(testEnv.rpcClient, tx, "confirmed", false)
+    );
+    console.log("tx", txSignature.toString());
 
     let token = await testEnv.programClient.fetchLaunchPadToken(
       testEnv.rpcClient.rpc,
@@ -410,30 +462,12 @@ describe("Launch Pad Fun", () => {
       getSetComputeUnitLimitInstruction({ units: 200_000 }), // <- Here we add the CU limit instruction.
       ix,
     ];
-    try {
-      const txSignature = await pipe(
-        await createDefaultTransaction(testEnv),
-        (tx) => appendTransactionMessageInstructions(instructions, tx),
-        (tx) => signAndSendTransaction(testEnv.rpcClient, tx, "confirmed")
-      );
-      console.log("tx", txSignature.toString());
-    } catch (e) {
-      console.error("error", e);
-      if (
-        testEnv.programClient.isLaunchpadFunError(e, {
-          instructions,
-        })
-      ) {
-        console.error(
-          "Program error:",
-          e,
-          testEnv.programClient.getLaunchpadFunErrorMessage(e.context.code)
-        );
-        throw e;
-      } else {
-        displaySolanaError(e);
-      }
-    }
+    const txSignature = await pipe(
+      await createDefaultTransaction(testEnv),
+      (tx) => appendTransactionMessageInstructions(instructions, tx),
+      (tx) => signAndSendTransaction(testEnv.rpcClient, tx, "confirmed", false)
+    );
+    console.log("tx", txSignature.toString());
 
     let token = await testEnv.programClient.fetchLaunchPadToken(
       testEnv.rpcClient.rpc,
@@ -544,30 +578,12 @@ describe("Launch Pad Fun", () => {
       getSetComputeUnitLimitInstruction({ units: 200_000 }), // <- Here we add the CU limit instruction.
       ix,
     ];
-    try {
-      const txSignature = await pipe(
-        await createDefaultTransaction(testEnv),
-        (tx) => appendTransactionMessageInstructions(instructions, tx),
-        (tx) => signAndSendTransaction(testEnv.rpcClient, tx, "confirmed")
-      );
-      console.log("tx", txSignature.toString());
-    } catch (e) {
-      console.error("error", e);
-      if (
-        testEnv.programClient.isLaunchpadFunError(e, {
-          instructions,
-        })
-      ) {
-        console.error(
-          "Program error:",
-          e,
-          testEnv.programClient.getLaunchpadFunErrorMessage(e.context.code)
-        );
-        throw e;
-      } else {
-        displaySolanaError(e);
-      }
-    }
+    const txSignature = await pipe(
+      await createDefaultTransaction(testEnv),
+      (tx) => appendTransactionMessageInstructions(instructions, tx),
+      (tx) => signAndSendTransaction(testEnv.rpcClient, tx, "confirmed", false)
+    );
+    console.log("tx", txSignature.toString());
 
     let token = await testEnv.programClient.fetchLaunchPadToken(
       testEnv.rpcClient.rpc,
@@ -619,5 +635,216 @@ describe("Launch Pad Fun", () => {
 
     expect(investor).to.not.be.null;
     expect(BigInt(investor.value.lamports.toString())).to.equal(9_893_151_722n);
+  });
+
+  it("buys a token and graduate", async () => {
+    const { rpcClient, programClient: program, creator, mint } = testEnv;
+    const programId = new anchor.web3.PublicKey(
+      program.LAUNCHPAD_FUN_PROGRAM_ADDRESS
+    );
+
+    await airdropFactory(rpcClient)({
+      recipientAddress: creator.address,
+      lamports: lamports(110_000_000_000n),
+      commitment: "confirmed",
+    });
+
+    const codec = getBase58Encoder();
+    const mintAddressBytes = codec.encode(mint.address.toString());
+
+    const [launchPadTokenPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("launch_pad_token:"), Buffer.from(mintAddressBytes)],
+      programId
+    );
+
+    const [graduationVaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault_graduation:"), Buffer.from(mintAddressBytes)],
+      programId
+    );
+
+    const [vaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("vault:")],
+      programId
+    );
+
+    const [launchPadConfigPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("launch_pad_config:")],
+      programId
+    );
+
+    const [launchPadTokenAccountPda] = await findAssociatedTokenPda({
+      /** The wallet address of the associated token account. */
+      owner: launchPadConfigPda.toBase58() as Address,
+      /** The address of the token program to use. */
+      tokenProgram: TOKEN_2022_PROGRAM_ID.toBase58() as Address,
+      /** The mint address of the associated token account. */
+      mint: mint.address,
+    });
+
+    // const [investorTokenAccountPda] = await findAssociatedTokenPda({
+    //   /** The wallet address of the associated token account. */
+    //   owner: creator.address,
+    //   /** The address of the token program to use. */
+    //   tokenProgram: TOKEN_2022_PROGRAM_ID.toBase58() as Address,
+    //   /** The mint address of the associated token account. */
+    //   mint: mint.address,
+    // });
+
+    // const raydiumCpmmProgramId = new anchor.web3.PublicKey(
+    //   "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C"
+    // );
+    // const ammConfigPda = new anchor.web3.PublicKey(
+    //   "D4FPEruKEHrG5TenZ2mpDGEfu1iUvTiqBxvpU8HLBvC2"
+    // );
+
+    const raydiumCpmmProgramId = new anchor.web3.PublicKey(
+      "DRaycpLY18LhpbydsBWbVJtxpNv9oXPgjRSfpF2bWpYb"
+    );
+    const ammConfigPda = new anchor.web3.PublicKey(
+      "A9qBhPy4k5UYW72hSgAkh1Epr2do69P54yzzcMV3yv6b"
+    );
+
+    const tokenArray = [NATIVE_MINT, new anchor.web3.PublicKey(mint.address)];
+    tokenArray.sort((a, b) => {
+      const bufferA = a.toBuffer();
+      const bufferB = b.toBuffer();
+      return Buffer.compare(bufferA, bufferB);
+    });
+    const token0Mint = tokenArray[0];
+    const token1Mint = tokenArray[1];
+
+    const [poolStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("pool"),
+        ammConfigPda.toBuffer(),
+        token0Mint.toBuffer(),
+        token1Mint.toBuffer(),
+      ],
+      raydiumCpmmProgramId
+    );
+
+    const [token0VaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("pool_vault"),
+        poolStatePda.toBuffer(),
+        token0Mint.toBuffer(),
+      ],
+      raydiumCpmmProgramId
+    );
+
+    const [token1VaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("pool_vault"),
+        poolStatePda.toBuffer(),
+        token1Mint.toBuffer(),
+      ],
+      raydiumCpmmProgramId
+    );
+    const [lpMintPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("pool_lp_mint"), poolStatePda.toBuffer()],
+      raydiumCpmmProgramId
+    );
+
+    const creatorAddressBytes = codec.encode(creator.address.toString());
+    const [lpTokenPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(creatorAddressBytes), // owner
+        TOKEN_PROGRAM_ID.toBuffer(),
+        lpMintPda.toBuffer(),
+      ],
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    const graduateIx = await program.getGraduateToRaydiumInstructionAsync({
+      investor: creator,
+      ammConfig: ammConfigPda.toBase58() as Address,
+      poolState: poolStatePda.toBase58() as Address,
+      lpToken: lpTokenPda.toBase58() as Address,
+      token0Vault: token0VaultPda.toBase58() as Address,
+      token1Vault: token1VaultPda.toBase58() as Address,
+      mint: mint.address,
+      wsolMint: NATIVE_MINT.toBase58() as Address,
+      // wsolMint: mint.address,
+      // mint: NATIVE_MINT.toBase58() as Address,
+    });
+
+    // prepare args
+    const args = {
+      amount: 110_000_000_000n,
+    } as BuyTokenInstructionDataArgs;
+
+    const buyTokenIx = await program.getBuyTokenInstructionAsync({
+      investor: creator,
+      mint: mint.address,
+      ...args,
+    });
+
+    const instructions = [
+      getSetComputeUnitLimitInstruction({ units: 600_000 }), // <- Here we add the CU limit instruction.
+      buyTokenIx,
+      graduateIx,
+    ];
+    const txSignature = await pipe(
+      await createDefaultTransaction(testEnv),
+      (tx) => appendTransactionMessageInstructions(instructions, tx),
+      (tx) => signAndSendTransaction(testEnv.rpcClient, tx, "confirmed", false)
+    );
+    console.log("tx", txSignature.toString());
+
+    let token = await testEnv.programClient.fetchLaunchPadToken(
+      testEnv.rpcClient.rpc,
+      launchPadTokenPda.toString() as Address,
+      { commitment: "confirmed" }
+    );
+
+    expect(token.data.creator.toString()).to.equal(creator.address.toString());
+    expect(token.data.mint.toString()).to.equal(mint.address.toString());
+    expect(token.data.virtualAssetAmount).to.equal(209535269847n);
+    expect(token.data.virtualTokenAmount).to.equal(477246623315581827n);
+    expect(token.data.currentK).to.equal(100000000000000000000000000000n);
+    expect(token.data.virtualGraduationAmount).to.equal(109535269847n);
+    expect(token.data.status).to.equal(3); // LaunchPadTokenStatus::Graduated (enum idx)
+
+    const graduationVault = await rpcClient.rpc
+      .getAccountInfo(graduationVaultPda.toString() as Address)
+      .send();
+
+    expect(graduationVault.value).to.be.null;
+
+    const launchPadTokenAccount = await rpcClient.rpc
+      .getAccountInfo(launchPadTokenAccountPda.toString() as Address)
+      .send();
+
+    expect(launchPadTokenAccount.value).to.be.null;
+
+    const vault = await rpcClient.rpc
+      .getAccountInfo(vaultPda.toString() as Address)
+      .send();
+
+    expect(vault.value).to.not.be.null;
+    expect(BigInt(vault.value.lamports.toString())).to.equal(564_333_071n);
+
+    // Raydium info
+
+    const token0VaultPdaAccount = await rpcClient.rpc
+      .getTokenAccountBalance(token0VaultPda.toString() as Address)
+      .send();
+
+    expect(token0VaultPdaAccount?.value).to.not.be.null;
+    expect(token0VaultPdaAccount.value.amount).to.equal("109536160727");
+
+    const token1VaultPdaAccount = await rpcClient.rpc
+      .getTokenAccountBalance(token1VaultPda.toString() as Address)
+      .send();
+
+    expect(token1VaultPdaAccount?.value).to.not.be.null;
+    expect(token1VaultPdaAccount.value.amount).to.equal("477246623315581827");
+
+    const lpTokenPdaAccount = await rpcClient.rpc
+      .getTokenAccountBalance(lpTokenPda.toString() as Address)
+      .send();
+
+    expect(lpTokenPdaAccount?.value).to.not.be.null;
+    expect(lpTokenPdaAccount.value.amount).to.equal("228638935524699");
   });
 });

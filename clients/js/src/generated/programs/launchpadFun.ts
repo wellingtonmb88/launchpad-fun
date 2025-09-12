@@ -16,6 +16,7 @@ import {
 import {
   type ParsedBuyTokenInstruction,
   type ParsedCreateTokenInstruction,
+  type ParsedGraduateToRaydiumInstruction,
   type ParsedInitializeInstruction,
   type ParsedSellTokenInstruction,
 } from '../instructions';
@@ -24,6 +25,7 @@ export const LAUNCHPAD_FUN_PROGRAM_ADDRESS =
   'HqY2bef2WwBtVSLJhii8GJ2aG3wFgDNECHYHc6Y1zHkR' as Address<'HqY2bef2WwBtVSLJhii8GJ2aG3wFgDNECHYHc6Y1zHkR'>;
 
 export enum LaunchpadFunAccount {
+  AmmConfig,
   LaunchPadConfig,
   LaunchPadToken,
 }
@@ -32,6 +34,17 @@ export function identifyLaunchpadFunAccount(
   account: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): LaunchpadFunAccount {
   const data = 'data' in account ? account.data : account;
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([218, 244, 33, 104, 203, 203, 43, 111])
+      ),
+      0
+    )
+  ) {
+    return LaunchpadFunAccount.AmmConfig;
+  }
   if (
     containsBytes(
       data,
@@ -58,6 +71,7 @@ export function identifyLaunchpadFunAccount(
 export enum LaunchpadFunInstruction {
   BuyToken,
   CreateToken,
+  GraduateToRaydium,
   Initialize,
   SellToken,
 }
@@ -87,6 +101,17 @@ export function identifyLaunchpadFunInstruction(
     )
   ) {
     return LaunchpadFunInstruction.CreateToken;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([59, 239, 35, 57, 13, 217, 40, 195])
+      ),
+      0
+    )
+  ) {
+    return LaunchpadFunInstruction.GraduateToRaydium;
   }
   if (
     containsBytes(
@@ -124,6 +149,9 @@ export type ParsedLaunchpadFunInstruction<
   | ({
       instructionType: LaunchpadFunInstruction.CreateToken;
     } & ParsedCreateTokenInstruction<TProgram>)
+  | ({
+      instructionType: LaunchpadFunInstruction.GraduateToRaydium;
+    } & ParsedGraduateToRaydiumInstruction<TProgram>)
   | ({
       instructionType: LaunchpadFunInstruction.Initialize;
     } & ParsedInitializeInstruction<TProgram>)

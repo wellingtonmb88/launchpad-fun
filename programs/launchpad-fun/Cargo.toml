@@ -11,6 +11,7 @@ name = "launchpad_fun"
 [features]
 default = []
 cpi = ["no-entrypoint"]
+devnet = ["raydium-cpmm-cpi/devnet"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
@@ -25,3 +26,4 @@ spl-type-length-value = "0.9.0"
 spl-token-2022 = { version = "9.0.0", features = ["no-entrypoint"] }
 solana-pubkey = "3.0.0"
 base64ct = { version = "1.7.3", features = [] }
+raydium-cpmm-cpi = { git = "https://github.com/raydium-io/raydium-cpi", package = "raydium-cpmm-cpi", features = ["cpi", "devnet"] }

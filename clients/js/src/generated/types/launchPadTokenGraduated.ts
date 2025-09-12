@@ -14,6 +14,8 @@ import {
   getI64Encoder,
   getStructDecoder,
   getStructEncoder,
+  getU64Decoder,
+  getU64Encoder,
   type Address,
   type FixedSizeCodec,
   type FixedSizeDecoder,
@@ -28,12 +30,22 @@ import {
 
 export type LaunchPadTokenGraduated = {
   mint: Address;
+  lpMint: Address;
+  lpToken: Address;
+  poolState: Address;
+  assetAmount: bigint;
+  tokenAmount: bigint;
   status: LaunchPadTokenStatus;
   timestamp: bigint;
 };
 
 export type LaunchPadTokenGraduatedArgs = {
   mint: Address;
+  lpMint: Address;
+  lpToken: Address;
+  poolState: Address;
+  assetAmount: number | bigint;
+  tokenAmount: number | bigint;
   status: LaunchPadTokenStatusArgs;
   timestamp: number | bigint;
 };
@@ -41,6 +53,11 @@ export type LaunchPadTokenGraduatedArgs = {
 export function getLaunchPadTokenGraduatedEncoder(): FixedSizeEncoder<LaunchPadTokenGraduatedArgs> {
   return getStructEncoder([
     ['mint', getAddressEncoder()],
+    ['lpMint', getAddressEncoder()],
+    ['lpToken', getAddressEncoder()],
+    ['poolState', getAddressEncoder()],
+    ['assetAmount', getU64Encoder()],
+    ['tokenAmount', getU64Encoder()],
     ['status', getLaunchPadTokenStatusEncoder()],
     ['timestamp', getI64Encoder()],
   ]);
@@ -49,6 +66,11 @@ export function getLaunchPadTokenGraduatedEncoder(): FixedSizeEncoder<LaunchPadT
 export function getLaunchPadTokenGraduatedDecoder(): FixedSizeDecoder<LaunchPadTokenGraduated> {
   return getStructDecoder([
     ['mint', getAddressDecoder()],
+    ['lpMint', getAddressDecoder()],
+    ['lpToken', getAddressDecoder()],
+    ['poolState', getAddressDecoder()],
+    ['assetAmount', getU64Decoder()],
+    ['tokenAmount', getU64Decoder()],
     ['status', getLaunchPadTokenStatusDecoder()],
     ['timestamp', getI64Decoder()],
   ]);

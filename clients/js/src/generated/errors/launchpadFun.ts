@@ -44,8 +44,8 @@ export const LAUNCHPAD_FUN_ERROR__INVALID_MINT = 0x177c; // 6012
 export const LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_NOT_CREATED = 0x177d; // 6013
 /** LaunchPadTokenAlreadyCreated: LaunchPadToken already created */
 export const LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_CREATED = 0x177e; // 6014
-/** LaunchPadTokenAlreadyGraduated: LaunchPadToken already graduated */
-export const LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_GRADUATED = 0x177f; // 6015
+/** LaunchPadTokenNotAlreadyToGraduate: LaunchPadToken not already to graduate */
+export const LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_NOT_ALREADY_TO_GRADUATE = 0x177f; // 6015
 /** LaunchPadTokenTradingNotEnabled: LaunchPadToken trading is not enabled */
 export const LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_TRADING_NOT_ENABLED = 0x1780; // 6016
 /** InvalidTokenNameLength: Invalid token name length */
@@ -74,7 +74,7 @@ export type LaunchpadFunError =
   | typeof LAUNCHPAD_FUN_ERROR__INVALID_TOKEN_SYMBOL_LENGTH
   | typeof LAUNCHPAD_FUN_ERROR__INVALID_TOKEN_URI_LENGTH
   | typeof LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_CREATED
-  | typeof LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_GRADUATED
+  | typeof LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_NOT_ALREADY_TO_GRADUATE
   | typeof LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_NOT_CREATED
   | typeof LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_TRADING_NOT_ENABLED
   | typeof LAUNCHPAD_FUN_ERROR__MATH_OVERFLOW
@@ -101,7 +101,7 @@ if (process.env.NODE_ENV !== 'production') {
     [LAUNCHPAD_FUN_ERROR__INVALID_TOKEN_SYMBOL_LENGTH]: `Invalid token symbol length`,
     [LAUNCHPAD_FUN_ERROR__INVALID_TOKEN_URI_LENGTH]: `Invalid token URI length`,
     [LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_CREATED]: `LaunchPadToken already created`,
-    [LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_ALREADY_GRADUATED]: `LaunchPadToken already graduated`,
+    [LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_NOT_ALREADY_TO_GRADUATE]: `LaunchPadToken not already to graduate`,
     [LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_NOT_CREATED]: `LaunchPadToken not created`,
     [LAUNCHPAD_FUN_ERROR__LAUNCH_PAD_TOKEN_TRADING_NOT_ENABLED]: `LaunchPadToken trading is not enabled`,
     [LAUNCHPAD_FUN_ERROR__MATH_OVERFLOW]: `Math overflow`,

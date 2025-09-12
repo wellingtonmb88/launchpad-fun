@@ -8,5 +8,6 @@
 
 export * from './buyToken';
 export * from './createToken';
+export * from './graduateToRaydium';
 export * from './initialize';
 export * from './sellToken';

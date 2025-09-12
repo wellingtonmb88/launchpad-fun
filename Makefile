@@ -4,9 +4,11 @@ sync-keys:
 	
 build:
 	anchor build 
+	anchor run generate-clients
 
 build-devnet:
 	anchor build -- --features devnet
+	anchor run generate-clients
 
 deploy-devnet:
 	anchor deploy --provider.cluster devnet
@@ -24,6 +26,9 @@ set-config-localnet:
 set-config-devnet:
 	solana config set --url devnet
 
-start-test-validator-from-dump-mainnet:
-	solana-test-validator \
-	--reset
+start-test-validator:
+	solana-test-validator --reset
+
+test:
+	make build-devnet
+	anchor test --skip-build

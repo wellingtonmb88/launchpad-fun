@@ -18,3 +18,37 @@ wallet = "~/.config/solana/id.json"
 [scripts]
 generate-clients = "yarn ts-node ./scripts/generate-clients.ts"
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[test]
+startup_wait = 10000
+
+# [test.validator]
+# url = "https://api.mainnet-beta.solana.com"
+
+# [[test.validator.clone]]
+# address = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C"
+
+# [[test.validator.account]]
+# address = "D4FPEruKEHrG5TenZ2mpDGEfu1iUvTiqBxvpU8HLBvC2"
+# filename = "tests/fixtures/cpmm_amm_config_mainnet.json"
+
+# [[test.validator.account]]
+# address = "DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8"
+# filename = "tests/fixtures/cpmm_fee_rcv_mainnet.json"
+
+[test.validator]
+url = "https://api.devnet.solana.com"
+# [[test.validator.clone]]
+# address = "DRay33UmULQCeawH3dVpJfN3uqLj6Qtq4ymSRx2pAgGK"
+
+[[test.genesis]]
+address = "DRaycpLY18LhpbydsBWbVJtxpNv9oXPgjRSfpF2bWpYb"
+program = "tests/fixtures/cpmm_devnet.so"
+
+[[test.validator.account]]
+address = "A9qBhPy4k5UYW72hSgAkh1Epr2do69P54yzzcMV3yv6b"
+filename = "tests/fixtures/cpmm_amm_config_devnet.json"
+
+[[test.validator.account]]
+address = "3oE58BKVt8KuYkGxx8zBojugnymWmBiyafWgMrnb6eYy"
+filename = "tests/fixtures/cpmm_fee_rcv_devnet.json"

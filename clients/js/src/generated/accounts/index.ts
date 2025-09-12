@@ -6,5 +6,6 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './ammConfig';
 export * from './launchPadConfig';
 export * from './launchPadToken';

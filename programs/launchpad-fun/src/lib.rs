@@ -45,4 +45,9 @@ pub mod launchpad_fun {
         sell_token::handler(ctx, args)?;
         Ok(())
     }
+
+    pub fn graduate_to_raydium(ctx: Context<GraduateToRaydium>) -> Result<()> {
+        graduate_to_raydium::handler(ctx)?;
+        Ok(())
+    }
 }

@@ -47,8 +47,8 @@ pub enum LaunchPadErrorCode {
     #[msg("LaunchPadToken already created")]
     LaunchPadTokenAlreadyCreated,
 
-    #[msg("LaunchPadToken already graduated")]
-    LaunchPadTokenAlreadyGraduated,
+    #[msg("LaunchPadToken not already to graduate")]
+    LaunchPadTokenNotAlreadyToGraduate,
 
     #[msg("LaunchPadToken trading is not enabled")]
     LaunchPadTokenTradingNotEnabled,

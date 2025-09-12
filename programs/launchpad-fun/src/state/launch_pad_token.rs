@@ -3,8 +3,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::{account, prelude::Pubkey, InitSpace};
 
 use crate::{
-    LaunchPadErrorCode, LaunchPadTokenCreated, LaunchPadTokenGraduated, LaunchPadTokenStatus,
-    DISC_LAUNCH_PAD_TOKEN_ACCOUNT,
+    LaunchPadErrorCode, LaunchPadTokenCreated, LaunchPadTokenStatus, DISC_LAUNCH_PAD_TOKEN_ACCOUNT,
 };
 
 #[derive(Default, Debug, InitSpace)]
@@ -37,6 +36,8 @@ pub struct LaunchPadToken {
 impl LaunchPadToken {
     pub const SEED: &'static [u8] = b"launch_pad_token:";
     pub const VAULT_SEED: &'static [u8] = b"vault_graduation:";
+    pub const VAULT_TOKEN_GRADUATION_SEED: &'static [u8] = b"vault_gdt_tk:";
+    pub const VAULT_ASSET_GRADUATION_SEED: &'static [u8] = b"vault_asset_gdt:";
 
     pub fn create(
         &mut self,
@@ -80,17 +81,11 @@ impl LaunchPadToken {
 
     pub fn graduate(&mut self) -> Result<()> {
         require!(
-            self.status == LaunchPadTokenStatus::TradingEnabled,
-            LaunchPadErrorCode::LaunchPadTokenAlreadyGraduated
+            self.status == LaunchPadTokenStatus::ReadyToGraduate,
+            LaunchPadErrorCode::LaunchPadTokenNotAlreadyToGraduate
         );
         self.status = LaunchPadTokenStatus::Graduated;
         self.graduated_at = Clock::get()?.unix_timestamp;
-
-        emit!(LaunchPadTokenGraduated {
-            mint: self.mint,
-            status: self.status,
-            timestamp: self.graduated_at,
-        });
         Ok(())
     }
 

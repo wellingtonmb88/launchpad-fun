@@ -40,6 +40,11 @@ pub struct LaunchPadTokenCreated {
 #[derive(Debug)]
 pub struct LaunchPadTokenGraduated {
     pub mint: Pubkey,
+    pub lp_mint: Pubkey,
+    pub lp_token: Pubkey,
+    pub pool_state: Pubkey,
+    pub asset_amount: u64,
+    pub token_amount: u64,
     pub status: LaunchPadTokenStatus,
     pub timestamp: i64,
 }
